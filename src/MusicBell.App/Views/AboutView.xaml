@@ -1,0 +1,106 @@
+<UserControl x:Class="MusicBell.App.Views.AboutView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="30,6,30,26">
+
+            <StackPanel Orientation="Horizontal">
+                <Border Width="54" Height="54" CornerRadius="16" Background="{DynamicResource AccentGrad}">
+                    <TextBlock Text="&#xE8FD;" Style="{StaticResource Glyph}" FontSize="24" Foreground="White"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center" Margin="16,0,0,0">
+                    <TextBlock Text="MusicBell 点歌铃" Style="{StaticResource H1}"/>
+                    <TextBlock x:Name="VersionText" Text="" Style="{StaticResource Caption}" Margin="0,4,0,0"/>
+                </StackPanel>
+            </StackPanel>
+
+            <TextBlock Style="{StaticResource Body}" TextWrapping="Wrap" Margin="0,18,0,0"
+                       Text="到点自动在网易云里搜歌并播放，平时安安静静待在托盘里。可以自己排时间，也可以让 ClassIsland 用「行动」来叫它。"/>
+
+            <!-- 作者 -->
+            <Border Style="{StaticResource Panel}" Margin="0,16,0,0" Padding="20,18">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="64" Height="64" CornerRadius="32" Background="{DynamicResource FieldBg}">
+                        <Grid>
+                            <Border x:Name="AvatarBox" CornerRadius="32"/>
+                            <TextBlock x:Name="AvatarGlyph" Text="&#xE77B;" FontFamily="{DynamicResource IconFont}" FontSize="22"
+                                       Foreground="{DynamicResource TextFaint}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                    <StackPanel Grid.Column="1" Margin="16,0,12,0" VerticalAlignment="Center">
+                        <TextBlock x:Name="AuthorName" Text="Chen_yang_LT" Style="{StaticResource H2}"/>
+                        <TextBlock x:Name="AuthorSub" Text="B 站 UP 主 · 顺手做的这个小工具" Style="{StaticResource Caption}" Margin="0,5,0,0"/>
+                        <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,3,0,0"
+                                   Text="头像和昵称取自 B 站主页，右边按钮带你去 GitHub 找源码和更新。"/>
+                    </StackPanel>
+                    <Button Grid.Column="2" Style="{StaticResource GhostButton}" Padding="14,9" Click="Github_Click"
+                            VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE8A1;" FontFamily="{DynamicResource IconFont}" FontSize="12"
+                                       VerticalAlignment="Center" Margin="0,0,7,0"/>
+                            <TextBlock Text="GitHub" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- 工作原理 -->
+            <Border Style="{StaticResource Panel}" Margin="0,20,0,0" Padding="20,16,20,18">
+                <StackPanel>
+                    <TextBlock Text="它是怎么放歌的" Style="{StaticResource H2}"/>
+                    <TextBlock Style="{StaticResource Body}" TextWrapping="Wrap" Margin="0,10,0,0"
+                               Text="到点后，程序把网易云叫到前台，点一下搜索框，把「歌手 歌名」粘进去回车 —— 和你自己搜歌一模一样，所以会员曲、歌单、日推全都不受影响。"/>
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
+                               Text="如果搜索方式打不进去（比如网易云改版），会在设置里把「用搜索框输入的方式播放」关掉，改用 orpheus:// 协议直接播放。"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ClassIsland -->
+            <Border Style="{StaticResource Panel}" Margin="0,16,0,0" Padding="20,16,20,18">
+                <StackPanel>
+                    <TextBlock Text="和 ClassIsland 联动" Style="{StaticResource H2}"/>
+                    <TextBlock Style="{StaticResource Body}" TextWrapping="Wrap" Margin="0,10,0,0"
+                               Text="两条路可以同时用：软件里排的时间由软件自己负责；课表那边的「行动」由 ClassIsland 触发。互不冲突。"/>
+
+                    <TextBlock Text="在 ClassIsland 里加载插件" Style="{StaticResource FieldLabel}" Margin="0,16,0,0"/>
+                    <TextBlock Style="{StaticResource Body}" TextWrapping="Wrap" Margin="0,7,0,0"
+                               Text="1. 打开「设置」页，点「释放插件」，会得到一个 MusicBell.ClassIsland.cipx 和同名文件夹。&#10;2. 打开 ClassIsland → 设置 → 插件 → 从本地安装，选那个 .cipx（或把文件夹拷到 ClassIsland\data\Plugins\ 下）。&#10;3. 在 ClassIsland 的「自动化 / 行动」里新增一个行动，选「MusicBell 放一首歌」，填上歌名和要显示的名字。"/>
+                    <Button Content="去设置页释放插件" Style="{StaticResource GhostButton}" Padding="16,9"
+                            HorizontalAlignment="Left" Margin="0,14,0,0" Click="GoSettings_Click"/>
+
+                    <TextBlock Text="插件里用到的协议" Style="{StaticResource FieldLabel}" Margin="0,18,0,0"/>
+                    <Border Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                            CornerRadius="10" Padding="14,10" Margin="0,7,0,0">
+                        <TextBlock x:Name="ProtocolText" FontFamily="Consolas" FontSize="12"
+                                   Foreground="{DynamicResource TextDim}" TextWrapping="Wrap"/>
+                    </Border>
+                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
+                               Text="参数：q=歌名（必填）· id=网易云歌曲 ID（可选）· label=呼出时显示的名字 · src=来源标记。"/>
+                    <Button Content="复制这个链接" Style="{StaticResource GhostButton}" Padding="16,9"
+                            HorizontalAlignment="Left" Margin="0,12,0,0" Click="Copy_Click"/>
+                </StackPanel>
+            </Border>
+
+            <!-- 小贴士 -->
+            <Border Style="{StaticResource PanelSoft}" Margin="0,16,0,0" Padding="20,16,20,18">
+                <StackPanel>
+                    <TextBlock Text="几个小贴士" Style="{StaticResource H2}"/>
+                    <TextBlock Style="{StaticResource Body}" TextWrapping="Wrap" Margin="0,10,0,0"
+                               Text="· 开机自启 + 启动后静默，放进教室电脑就不用管了。&#10;· 电脑锁屏时也能放歌，但网易云窗口必须在，别手动关掉它。&#10;· 排歌支持每天 / 每周重复，上课铃、午休、放学的曲子各排一条就行。&#10;· 所有数据都在「设置 → 数据目录」里，换电脑直接拷走。"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                        <Button Content="打开数据目录" Style="{StaticResource GhostButton}" Padding="16,9" Margin="0,0,10,0"
+                                Click="OpenData_Click"/>
+                        <Button Content="打开日志" Style="{StaticResource GhostButton}" Padding="16,9"
+                                Click="OpenLog_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

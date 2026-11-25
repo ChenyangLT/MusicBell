@@ -1,0 +1,139 @@
+<UserControl x:Class="MusicBell.App.Views.PeopleView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="{DynamicResource UiFont}">
+    <Grid Margin="26,8,30,26">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,14">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="点歌人" Style="{StaticResource H1}" />
+                <Border Style="{StaticResource Chip}" Margin="10,0,0,0" Background="{DynamicResource AccentSoft}">
+                    <TextBlock x:Name="CountText" Text="0 位" FontSize="11.5" Foreground="{DynamicResource Accent}" />
+                </Border>
+                <TextBlock Text="从名单里点歌，这里会自动统计谁点了什么" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="12,2,0,0" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <TextBox x:Name="AddBox" Style="{StaticResource Input}" Width="132" Height="34" Padding="10,4" Margin="0,0,8,0"
+                         VerticalContentAlignment="Center" KeyDown="AddBox_KeyDown" ToolTip="输入名字后回车，或点右边的添加" />
+                <Button Style="{StaticResource GhostButton}" Content="添加" Click="Add_Click" Margin="0,0,8,0" />
+                <Button Style="{StaticResource GhostButton}" Content="导入名单（Excel / CSV）" Click="Import_Click" Margin="0,0,8,0" />
+                <Button Style="{StaticResource PrimaryButton}" Content="清空名单" Click="Clear_Click" />
+            </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="322" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- 左：名单 -->
+            <Border Grid.Column="0" Style="{StaticResource Panel}" Padding="10" Margin="0,0,14,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ItemsControl x:Name="PeopleList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Style="{StaticResource RowButton}" Click="Person_Click" Margin="0,1">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Width="32" Height="32" CornerRadius="16" Background="{Binding AvatarBg}" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Initial}" FontSize="13" FontWeight="SemiBold" Foreground="{Binding AvatarFg}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Margin="10,0,8,0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontSize="13" Foreground="{DynamicResource Text}" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding Sub}" FontSize="11" Foreground="{DynamicResource TextDim}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                            <Border Grid.Column="2" Style="{StaticResource Chip}" Background="{Binding BadgeBg}" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding CountText}" FontSize="11" Foreground="{Binding BadgeFg}" />
+                                            </Border>
+                                        </Grid>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <TextBlock x:Name="EmptyHint" Grid.Row="1" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="6,10,6,2"
+                               Text="还没有点歌人。上面输入名字，或者导入一份 Excel 名单（第一列是姓名）。" />
+                </Grid>
+            </Border>
+
+            <!-- 右：某人的明细 -->
+            <Border Grid.Column="1" Style="{StaticResource Panel}" Padding="18,16">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock x:Name="DetailName" Text="选一位点歌人" Style="{StaticResource H2}" />
+                            <Border x:Name="DetailGroupChip" Style="{StaticResource Chip}" Margin="8,0,0,0" Visibility="Collapsed">
+                                <TextBlock x:Name="DetailGroup" Text="" FontSize="11" Foreground="{DynamicResource TextDim}" />
+                            </Border>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <Button x:Name="RemoveBtn" Style="{StaticResource GhostButton}" Content="从名单移除" Click="Remove_Click" Visibility="Collapsed" />
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock x:Name="DetailStats" Grid.Row="1" Text="用下面的名单挑个人，就能看到他/她点过的歌。"
+                               FontSize="12" Foreground="{DynamicResource TextDim}" Margin="0,8,0,12" />
+
+                    <Grid Grid.Row="2">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl x:Name="SongList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource ListRow}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Border Width="38" Height="38" CornerRadius="9" Background="{Binding Cover}" VerticalAlignment="Center"
+                                                        Visibility="{Binding CoverVis}" />
+                                                <Border Width="38" Height="38" CornerRadius="9" Background="{DynamicResource ChipBg}" VerticalAlignment="Center"
+                                                        Visibility="{Binding PlaceholderVis}">
+                                                    <TextBlock Text="&#xE8D6;" FontFamily="{DynamicResource IconFont}" FontSize="15"
+                                                               Foreground="{DynamicResource TextFaint}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <StackPanel Grid.Column="2" Margin="12,0,10,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Title}" FontSize="13" Foreground="{DynamicResource Text}" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding Sub}" FontSize="11" Foreground="{DynamicResource TextDim}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                                    <TextBlock Text="{Binding TimeText}" FontSize="11.5" Foreground="{DynamicResource Text}" HorizontalAlignment="Right" />
+                                                    <TextBlock Text="{Binding LabelText}" FontSize="10.5" Foreground="{DynamicResource TextFaint}" Margin="0,2,0,0" HorizontalAlignment="Right" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                        <TextBlock x:Name="DetailEmpty" Text="这个人还没点过歌" FontSize="12" Foreground="{DynamicResource TextFaint}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed" />
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

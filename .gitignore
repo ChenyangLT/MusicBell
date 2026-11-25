@@ -1,0 +1,11 @@
+# 构建产物
+bin/
+obj/
+dist/
+*.user
+.vs/
+# 本地侦察/测试资料
+_ref/
+_work/
+# 打包中间文件
+tools/_plugin/

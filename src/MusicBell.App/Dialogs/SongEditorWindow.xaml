@@ -1,0 +1,164 @@
+<Window x:Class="MusicBell.App.Dialogs.SongEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="排一首歌" Width="492" SizeToContent="Height"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False">
+    <Border Margin="20" CornerRadius="18" Background="{DynamicResource Card}"
+            BorderBrush="{DynamicResource Border}" BorderThickness="1">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="30" ShadowDepth="0" Opacity="0.55" Color="#000000"/>
+        </Border.Effect>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- 标题栏（可拖拽） -->
+            <Grid Grid.Row="0" Height="58" Background="Transparent"
+                  MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="22,0,0,0">
+                    <Border Width="30" Height="30" CornerRadius="9" Background="{DynamicResource AccentGrad}">
+                        <TextBlock Text="&#xE8FD;" Style="{StaticResource Glyph}" FontSize="15"
+                                   Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock x:Name="HeadText" Text="排一首歌" Style="{StaticResource H2}"
+                               VerticalAlignment="Center" Margin="12,0,0,0"/>
+                </StackPanel>
+                <Button Content="&#xE711;" Style="{StaticResource IconButton}" Width="32" Height="32"
+                        HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,14,0"
+                        Click="Cancel_Click"/>
+            </Grid>
+
+            <!-- 内容 -->
+            <StackPanel Grid.Row="1" Margin="22,4,22,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="58" Height="58" CornerRadius="12"
+                            Background="{DynamicResource FieldBg}" Margin="0,0,12,0" VerticalAlignment="Bottom">
+                        <Grid>
+                            <Border x:Name="CoverBox" CornerRadius="12" Visibility="Collapsed"/>
+                            <TextBlock x:Name="CoverGlyph" Text="&#xE8D6;" FontFamily="{DynamicResource IconFont}"
+                                       FontSize="20" Foreground="{DynamicResource TextFaint}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="歌名 / 搜索词" Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="TitleInput" Style="{StaticResource Input}" Margin="0,6,0,0"
+                                 FontSize="14" Padding="12,10" TextChanged="TitleInput_TextChanged"/>
+                    </StackPanel>
+                </Grid>
+                <TextBlock Text="写在网易云搜索框里的内容，建议“歌手 歌名”" Style="{StaticResource Caption}"
+                           Margin="2,6,0,0"/>
+
+                <Grid Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="110"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                        <TextBlock Text="日期" Style="{StaticResource FieldLabel}"/>
+                        <Border Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource Border}"
+                                BorderThickness="1" CornerRadius="10" Height="42" Margin="0,6,0,0">
+                            <Grid>
+                                <TextBlock x:Name="DateText" Style="{StaticResource Body}" VerticalAlignment="Center"
+                                           Margin="12,0,0,0"/>
+                                <TextBlock x:Name="LunarHint" Text="" Style="{StaticResource Caption}"
+                                           HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="时间" Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="TimeInput" Style="{StaticResource Input}" Margin="0,6,0,0"
+                                 FontSize="16" Padding="12,8" FontWeight="SemiBold" TextAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+
+                <WrapPanel Margin="0,8,0,0">
+                    <Button Content="07:00" Style="{StaticResource GhostButton}" Padding="12,5" FontSize="12"
+                            Margin="0,0,6,0" Tag="07:00" Click="Preset_Click"/>
+                    <Button Content="07:50" Style="{StaticResource GhostButton}" Padding="12,5" FontSize="12"
+                            Margin="0,0,6,0" Tag="07:50" Click="Preset_Click"/>
+                    <Button Content="09:40" Style="{StaticResource GhostButton}" Padding="12,5" FontSize="12"
+                            Margin="0,0,6,0" Tag="09:40" Click="Preset_Click"/>
+                    <Button Content="12:10" Style="{StaticResource GhostButton}" Padding="12,5" FontSize="12"
+                            Margin="0,0,6,0" Tag="12:10" Click="Preset_Click"/>
+                    <Button Content="17:30" Style="{StaticResource GhostButton}" Padding="12,5" FontSize="12"
+                            Margin="0,0,6,0" Tag="17:30" Click="Preset_Click"/>
+                    <Button Content="21:00" Style="{StaticResource GhostButton}" Padding="12,5" FontSize="12"
+                            Margin="0,0,6,0" Tag="21:00" Click="Preset_Click"/>
+                </WrapPanel>
+
+                <TextBlock Text="排歌名称（可选）" Style="{StaticResource FieldLabel}" Margin="0,16,0,0"/>
+                <TextBox x:Name="LabelInput" Style="{StaticResource Input}" Margin="0,6,0,0" Padding="12,10"/>
+                <TextBlock Text="到点呼出时显示的名字，比如「午休第一首」；留空就用歌名" Style="{StaticResource Caption}"
+                           Margin="2,6,0,0"/>
+
+                <TextBlock Text="点歌人（可选）" Style="{StaticResource FieldLabel}" Margin="0,14,0,0"/>
+                <TextBox x:Name="RequesterInput" Style="{StaticResource Input}" Margin="0,6,0,0" Padding="12,10"
+                         TextChanged="RequesterInput_TextChanged" KeyDown="RequesterInput_KeyDown"/>
+                <Border x:Name="RequesterPanel" Visibility="Collapsed" Background="{DynamicResource CardDeep}"
+                        BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="10"
+                        Margin="0,5,0,0" Padding="4" MaxHeight="132">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ItemsControl x:Name="RequesterList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Style="{StaticResource RowButton}" Content="{Binding}"
+                                            Tag="{Binding}" Click="RequesterPick_Click"
+                                            HorizontalContentAlignment="Left" FontSize="12.5"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Border>
+                <TextBlock Text="名单可在「点歌人」页从 Excel 导入；这里输入时会自动联想" Style="{StaticResource Caption}"
+                           Margin="2,6,0,0"/>
+
+                <TextBlock Text="重复" Style="{StaticResource FieldLabel}" Margin="0,16,0,0"/>
+                <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
+                    <RadioButton x:Name="RepeatNone" Style="{StaticResource ChipToggle}" Content="只放一次"
+                                 GroupName="Repeat" Margin="0,0,8,0" Click="Repeat_Click" Tag="none"/>
+                    <RadioButton x:Name="RepeatDaily" Style="{StaticResource ChipToggle}" Content="每天这个时间"
+                                 GroupName="Repeat" Margin="0,0,8,0" Click="Repeat_Click" Tag="daily"/>
+                    <RadioButton x:Name="RepeatWeekly" Style="{StaticResource ChipToggle}" Content="每周这一天"
+                                 GroupName="Repeat" Click="Repeat_Click" Tag="weekly"/>
+                </StackPanel>
+
+                <Grid Margin="0,18,0,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <CheckBox x:Name="EnabledSwitch" Style="{StaticResource Switch}" IsChecked="True"
+                                  VerticalAlignment="Center"/>
+                        <TextBlock Text="启用这一条" Style="{StaticResource Body}" Margin="10,0,0,0"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Button x:Name="ShiftBtn" Style="{StaticResource GhostButton}" Padding="10,5" FontSize="11.5"
+                                Margin="0,0,8,0" Visibility="Collapsed" Click="Shift_Click"/>
+                        <TextBlock x:Name="ErrText" Text="" Foreground="{DynamicResource Danger}" FontSize="12"
+                                   VerticalAlignment="Center" Visibility="Collapsed" TextWrapping="Wrap" MaxWidth="250"/>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+
+            <!-- 底部按钮 -->
+            <Grid Grid.Row="2" Margin="22,20,22,20">
+                <TextBlock Text="保存后会出现在日历里，到点自动播放" Style="{StaticResource Caption}"
+                           VerticalAlignment="Center"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="取消" Style="{StaticResource GhostButton}" Padding="20,9"
+                            Margin="0,0,10,0" Click="Cancel_Click"/>
+                    <Button x:Name="SaveBtn" Content="保存并排上" Style="{StaticResource PrimaryButton}" Padding="22,9"
+                            Click="Save_Click"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
