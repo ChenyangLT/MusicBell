@@ -30,10 +30,12 @@ public partial class CalendarView : UserControl
     private readonly ObservableCollection<DayVm> _days = new();
     private readonly DispatcherTimer _debounce = new() { Interval = TimeSpan.FromMilliseconds(320) };
     private readonly NeteaseSearchClient _client = new();
+    private readonly BiliSearchClient _bili = new();
     private CancellationTokenSource? _cts;
 
     private DateTime _month;
     private DateTime _selected = DateTime.Today;
+    private string _source = SongSources.Netease;
 
     public CalendarView()
     {
@@ -46,8 +48,59 @@ public partial class CalendarView : UserControl
             _debounce.Stop();
             await RunSearchAsync();
         };
-        Loaded += (_, _) => Reload();
+        Loaded += (_, _) =>
+        {
+            ApplySourceFromConfig();
+            Reload();
+        };
         ThemeService.Changed += _ => Dispatcher.BeginInvoke(new Action(Reload));
+    }
+
+    /// <summary>把上次用的搜索源恢复出来。</summary>
+    private void ApplySourceFromConfig()
+    {
+        string saved;
+        try { saved = App.Current.Storage.Config.LastSource ?? SongSources.Netease; }
+        catch { return; }
+        _source = saved == SongSources.Bili ? SongSources.Bili : SongSources.Netease;
+        if (_source == SongSources.Bili) SrcBili.IsChecked = true;
+        else SrcNet.IsChecked = true;
+        UpdateHintText();
+    }
+
+    private void Src_Checked(object sender, RoutedEventArgs e)
+    {
+        if (SrcNet is null || SrcBili is null) return;
+        _source = SrcBili.IsChecked == true ? SongSources.Bili : SongSources.Netease;
+        UpdateHintText();
+        try
+        {
+            var cfg = App.Current.Storage.Config;
+            if (cfg.LastSource != _source)
+            {
+                cfg.LastSource = _source;
+                App.Current.Storage.SaveConfig();
+            }
+        }
+        catch { }
+
+        if (!string.IsNullOrWhiteSpace(SearchBox?.Text))
+        {
+            _debounce.Stop();
+            _debounce.Start();
+        }
+        else
+        {
+            HideSuggest();
+        }
+    }
+
+    private void UpdateHintText()
+    {
+        if (SearchHint is null) return;
+        SearchHint.Text = _source == SongSources.Bili
+            ? "搜 B 站视频，比如「歌名 翻唱」"
+            : "搜歌名，或写「歌手 歌名」";
     }
 
     private static Brush Frozen(string hex)
@@ -94,8 +147,8 @@ public partial class CalendarView : UserControl
                     Tip = $"{s.Time:HH:mm} {s.Display}",
                     Background = isSelected ? ChipSelectedBg : ChipNormalBg,
                     Fg = isSelected ? OnSelectedBrush : TextNormal,
-                    Cover = CoverService.ToBrush(CoverService.TryCached(IdOf(s))),
-                    CoverVis = CoverService.TryCached(IdOf(s)) is null ? Visibility.Collapsed : Visibility.Visible
+                    Cover = CoverBrush(s),
+                    CoverVis = CoverBrush(s) is null ? Visibility.Collapsed : Visibility.Visible
                 })
                 .ToList();
 
@@ -129,9 +182,7 @@ public partial class CalendarView : UserControl
         foreach (var row in rows)
         {
             if (row.CoverVis == Visibility.Visible) continue;
-            var id = IdOf(row.Entry);
-            if (id <= 0) continue;
-            var src = await CoverService.EnsureAsync(id).ConfigureAwait(true);
+            var src = await CoverService.EnsureForAsync(row.Entry).ConfigureAwait(true);
             if (src is null) continue;
             row.SetCover(src);
         }
@@ -143,9 +194,16 @@ public partial class CalendarView : UserControl
 
     private static long IdOf(SongEntry song) => long.TryParse(song.SongId, out var id) ? id : 0;
 
+    /// <summary>已缓存的封面画刷（网易云按 id，B 站按 bvid）。</summary>
+    private static ImageBrush? CoverBrush(SongEntry song)
+        => song.Source == SongSources.Bili
+            ? CoverService.ToBrush(CoverService.TryCachedBili(song.SongId))
+            : CoverService.ToBrush(CoverService.TryCached(IdOf(song)));
+
     private static SongRowVm MakeRow(SongEntry e)
     {
         var parts = new List<string>();
+        if (e.Source == SongSources.Bili) parts.Add("B 站");
         if (!string.IsNullOrWhiteSpace(e.Requester)) parts.Add("点歌 " + e.Requester);
         if (!string.IsNullOrWhiteSpace(e.Artist)) parts.Add(e.Artist!);
         if (!string.IsNullOrWhiteSpace(e.Label)) parts.Add(e.Label!);
@@ -155,9 +213,9 @@ public partial class CalendarView : UserControl
         return new SongRowVm
         {
             Entry = e,
-            Cover = CoverService.ToBrush(CoverService.TryCached(IdOf(e))),
-            CoverVis = CoverService.TryCached(IdOf(e)) is null ? Visibility.Collapsed : Visibility.Visible,
-            CoverFaintVis = CoverService.TryCached(IdOf(e)) is null ? Visibility.Visible : Visibility.Collapsed,
+            Cover = CoverBrush(e),
+            CoverVis = CoverBrush(e) is null ? Visibility.Collapsed : Visibility.Visible,
+            CoverFaintVis = CoverBrush(e) is null ? Visibility.Visible : Visibility.Collapsed,
             SubLine = string.Join(" · ", parts),
             TimeBg = e.Enabled ? ChipSelectedBg : ChipNormalBg,
             TimeFg = e.Enabled ? ThemeService.Brush("ChipTextOn") : TextDim
@@ -231,44 +289,94 @@ public partial class CalendarView : UserControl
 
         _cts?.Cancel();
         _cts = new CancellationTokenSource();
-        var list = await _client.SuggestAsync(keyword, 8, _cts.Token).ConfigureAwait(true);
-        if (!string.Equals(keyword, SearchBox.Text.Trim(), StringComparison.Ordinal)) return;
+        var token = _cts.Token;
+        var source = _source;
+        List<SuggestionVm> vms;
 
-        if (list.Count == 0)
+        if (source == SongSources.Bili)
         {
-            HideSuggest();
-            return;
+            var videos = await _bili.SearchAsync(keyword, 8, token).ConfigureAwait(true);
+            if (!string.Equals(keyword, SearchBox.Text.Trim(), StringComparison.Ordinal) || source != _source) return;
+            if (videos.Count == 0)
+            {
+                HideSuggest();
+                return;
+            }
+            vms = videos.Select(v =>
+            {
+                var cached = CoverService.TryCachedBili(v.Bvid);
+                return new SuggestionVm
+                {
+                    Source = SongSources.Bili,
+                    SongId = v.Bvid,
+                    Query = v.Query,
+                    Artist = v.Author,
+                    Url = v.Url,
+                    CoverUrl = v.CoverUrl,
+                    Name = v.Title,
+                    Subtitle = v.Subtitle,
+                    DurationText = v.DurationText,
+                    Cover = CoverService.ToBrush(cached),
+                    CoverVis = cached is null ? Visibility.Collapsed : Visibility.Visible,
+                    CoverFaintVis = cached is null ? Visibility.Visible : Visibility.Collapsed
+                };
+            }).ToList();
         }
-
-        var vms = list.Select(s => new SuggestionVm
+        else
         {
-            Song = s,
-            Cover = CoverService.ToBrush(CoverService.TryCached(s.Id)),
-            CoverVis = CoverService.TryCached(s.Id) is null ? Visibility.Collapsed : Visibility.Visible,
-            CoverFaintVis = CoverService.TryCached(s.Id) is null ? Visibility.Visible : Visibility.Collapsed
-        }).ToList();
+            var list = await _client.SuggestAsync(keyword, 8, token).ConfigureAwait(true);
+            if (!string.Equals(keyword, SearchBox.Text.Trim(), StringComparison.Ordinal) || source != _source) return;
+            if (list.Count == 0)
+            {
+                HideSuggest();
+                return;
+            }
+            vms = list.Select(s =>
+            {
+                var cached = CoverService.TryCached(s.Id);
+                return new SuggestionVm
+                {
+                    Source = SongSources.Netease,
+                    SongId = s.Id.ToString(CultureInfo.InvariantCulture),
+                    Query = s.Query,
+                    Artist = s.Artist,
+                    CoverUrl = s.CoverUrl,
+                    Name = s.Name,
+                    Subtitle = s.Subtitle,
+                    DurationText = s.DurationText,
+                    Cover = CoverService.ToBrush(cached),
+                    CoverVis = cached is null ? Visibility.Collapsed : Visibility.Visible,
+                    CoverFaintVis = cached is null ? Visibility.Visible : Visibility.Collapsed
+                };
+            }).ToList();
+        }
 
         SuggestList.ItemsSource = vms;
         SuggestPanel.Visibility = Visibility.Visible;
-        _ = FillSuggestCoversAsync(vms, list);
+        _ = FillSuggestCoversAsync(vms);
     }
 
-    private async System.Threading.Tasks.Task FillSuggestCoversAsync(List<SuggestionVm> vms, IReadOnlyList<NeteaseSong> songs)
+    private async System.Threading.Tasks.Task FillSuggestCoversAsync(List<SuggestionVm> vms)
     {
-        var target = vms.FirstOrDefault(v => v.CoverVis != Visibility.Visible);
-        if (target is null) return;
-        var src = await CoverService.GetAsync(target.Song.Id, target.Song.CoverUrl).ConfigureAwait(true);
-        if (src is null || SuggestList.ItemsSource is not List<SuggestionVm> current) return;
-        foreach (var vm in current.Where(v => v.CoverVis != Visibility.Visible).ToList())
+        foreach (var vm in vms)
         {
-            var one = await CoverService.GetAsync(vm.Song.Id, vm.Song.CoverUrl).ConfigureAwait(true);
-            vm.SetCover(one);
+            if (vm.CoverVis == Visibility.Visible) continue;
+            ImageSource? src;
+            if (vm.Source == SongSources.Bili)
+                src = await CoverService.GetBiliAsync(vm.SongId, vm.CoverUrl).ConfigureAwait(true);
+            else
+                src = long.TryParse(vm.SongId, out var id)
+                    ? await CoverService.GetAsync(id, vm.CoverUrl).ConfigureAwait(true)
+                    : null;
+            if (src is null) continue;
+            vm.SetCover(src);
         }
         SuggestList.Items.Refresh();
     }
 
     private void HideSuggest()
     {
+        if (SuggestPanel is null) return;
         SuggestPanel.Visibility = Visibility.Collapsed;
         SuggestList.ItemsSource = null;
     }
@@ -287,18 +395,24 @@ public partial class CalendarView : UserControl
         SuggestionVm? pick = null;
         if (SuggestList.Items.Count > 0) pick = SuggestList.Items[0] as SuggestionVm;
 
-        if (pick is not null) OpenEditor(pick.Song.Query, pick.Song.Id.ToString(), pick.Song.Artist);
-        else if (!string.IsNullOrWhiteSpace(SearchBox.Text)) OpenEditor(SearchBox.Text.Trim(), null, null);
+        if (pick is not null) OpenEditor(pick.Query, pick.SongId, pick.Artist, pick.Source, pick.Url, pick.CoverUrl);
+        else if (!string.IsNullOrWhiteSpace(SearchBox.Text))
+        {
+            var text = SearchBox.Text.Trim();
+            if (_source == SongSources.Bili) OpenEditor(text, null, null, SongSources.Bili, BiliSearchClient.SearchUrl(text), null);
+            else OpenEditor(text, null, null);
+        }
         e.Handled = true;
     }
 
     private void Suggest_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is not SuggestionVm pick) return;
-        OpenEditor(pick.Song.Query, pick.Song.Id.ToString(), pick.Song.Artist);
+        OpenEditor(pick.Query, pick.SongId, pick.Artist, pick.Source, pick.Url, pick.CoverUrl);
     }
 
-    private void OpenEditor(string query, string? songId, string? artist)
+    private void OpenEditor(string query, string? songId, string? artist,
+        string source = SongSources.Netease, string? url = null, string? coverUrl = null)
     {
         HideSuggest();
 
@@ -313,6 +427,9 @@ public partial class CalendarView : UserControl
             Title = query,
             Artist = string.IsNullOrWhiteSpace(artist) ? null : artist,
             SongId = songId,
+            Source = source,
+            Url = url,
+            CoverUrl = coverUrl,
             Time = _selected.Date + defaultTime,
             Enabled = true,
             Repeat = RepeatModes.None
@@ -355,7 +472,7 @@ public partial class CalendarView : UserControl
     private void RowPlay_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is not SongRowVm row) return;
-        App.Current.PlayExternal(row.Entry.Title, row.Entry.Label ?? row.Entry.Title);
+        App.Current.PlayEntry(row.Entry);
     }
 
     private void RowDelete_Click(object sender, RoutedEventArgs e)
@@ -394,10 +511,17 @@ public sealed class ChipVm
 
 public sealed class SuggestionVm
 {
-    public NeteaseSong Song { get; init; } = new();
-    public string Name => Song.Name;
-    public string Subtitle => Song.Subtitle;
-    public string DurationText => Song.DurationText;
+    public string Source { get; init; } = SongSources.Netease;
+    /// <summary>网易云是歌曲 id 字符串，B 站是 bvid。</summary>
+    public string? SongId { get; init; }
+    /// <summary>写进搜索框的文字。</summary>
+    public string Query { get; init; } = "";
+    public string? Artist { get; init; }
+    public string? Url { get; init; }
+    public string? CoverUrl { get; init; }
+    public string Name { get; init; } = "";
+    public string Subtitle { get; init; } = "";
+    public string DurationText { get; init; } = "";
     public ImageBrush? Cover { get; set; }
     public Visibility CoverVis { get; set; } = Visibility.Collapsed;
     public Visibility CoverFaintVis { get; set; } = Visibility.Visible;

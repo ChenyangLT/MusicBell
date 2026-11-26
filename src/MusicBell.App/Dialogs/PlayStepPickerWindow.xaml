@@ -1,0 +1,21 @@
+<Window x:Class="MusicBell.App.Dialogs.PlayStepPickerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="拾取位置" WindowStyle="None" AllowsTransparency="True" Background="#66000000"
+        Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize" WindowStartupLocation="Manual"
+        Cursor="Cross" ShowActivated="True"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable=""
+        FontFamily="{DynamicResource UiFont}">
+    <Grid Background="Transparent" MouseLeftButtonDown="Root_MouseLeftButtonDown">
+        <Border Background="#EE10141B" CornerRadius="14" Padding="24,16" VerticalAlignment="Top"
+                HorizontalAlignment="Center" Margin="0,64,0,0" BorderBrush="#3A4353" BorderThickness="1">
+            <StackPanel>
+                <TextBlock Text="点一下要点的位置" Foreground="#F2F5F9" FontSize="18" FontWeight="SemiBold" />
+                <TextBlock x:Name="Hint"
+                           Text="会存成相对网易云窗口的比例，换分辨率也不会偏 · 按 Esc 取消"
+                           Foreground="#9AA4B5" FontSize="12.5" Margin="0,8,0,0" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

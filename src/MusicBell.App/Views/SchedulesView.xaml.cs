@@ -92,6 +92,7 @@ public partial class SchedulesView : UserControl
     private static ScheduleRowVm MakeRow(SongEntry s, DateTime? at)
     {
         var parts = new List<string>();
+        if (s.Source == SongSources.Bili) parts.Add("B 站");
         if (!string.IsNullOrWhiteSpace(s.Requester)) parts.Add("点歌 " + s.Requester);
         if (!string.IsNullOrWhiteSpace(s.Artist)) parts.Add(s.Artist!);
         if (!string.IsNullOrWhiteSpace(s.RepeatText)) parts.Add(s.RepeatText);
@@ -112,9 +113,9 @@ public partial class SchedulesView : UserControl
             StateText = s.Enabled ? "启用" : "停用",
             LabelText = s.Label ?? "",
             LabelVis = string.IsNullOrWhiteSpace(s.Label) ? Visibility.Collapsed : Visibility.Visible,
-            Cover = CoverService.ToBrush(CoverService.TryCached(IdOf(s))),
-            CoverVis = CoverService.TryCached(IdOf(s)) is null ? Visibility.Collapsed : Visibility.Visible,
-            CoverFaintVis = CoverService.TryCached(IdOf(s)) is null ? Visibility.Visible : Visibility.Collapsed
+            Cover = CoverBrush(s),
+            CoverVis = CoverBrush(s) is null ? Visibility.Collapsed : Visibility.Visible,
+            CoverFaintVis = CoverBrush(s) is null ? Visibility.Visible : Visibility.Collapsed
         };
         return row;
     }
@@ -125,9 +126,7 @@ public partial class SchedulesView : UserControl
         foreach (var row in rows)
         {
             if (row.CoverVis == Visibility.Visible) continue;
-            var id = IdOf(row.Entry);
-            if (id <= 0) continue;
-            var src = await CoverService.EnsureAsync(id).ConfigureAwait(true);
+            var src = await CoverService.EnsureForAsync(row.Entry).ConfigureAwait(true);
             if (src is null) continue;
             row.SetCover(src);
             changed = true;
@@ -136,6 +135,11 @@ public partial class SchedulesView : UserControl
     }
 
     private static long IdOf(SongEntry s) => long.TryParse(s.SongId, out var id) ? id : 0;
+
+    private static ImageBrush? CoverBrush(SongEntry s)
+        => s.Source == SongSources.Bili
+            ? CoverService.ToBrush(CoverService.TryCachedBili(s.SongId))
+            : CoverService.ToBrush(CoverService.TryCached(IdOf(s)));
 
     private static string Relative(DateTime at)
     {
@@ -183,7 +187,7 @@ public partial class SchedulesView : UserControl
     private void Play_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is not ScheduleRowVm row) return;
-        App.Current.PlayExternal(row.Entry.Title, row.Entry.Label ?? row.Entry.Title);
+        App.Current.PlayEntry(row.Entry);
     }
 
     private void Edit_Click(object sender, RoutedEventArgs e)

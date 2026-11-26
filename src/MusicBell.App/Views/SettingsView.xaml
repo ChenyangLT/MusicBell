@@ -197,6 +197,64 @@
                 </StackPanel>
             </Border>
 
+            <!-- 播放与点歌方式 -->
+            <Border Style="{StaticResource Panel}" Margin="0,16,0,0" Padding="0">
+                <StackPanel>
+                    <TextBlock Text="播放与点歌方式" Style="{StaticResource H2}" Margin="18,16,0,4"/>
+                    <Grid Margin="18,10">
+                        <StackPanel>
+                            <TextBlock Text="放歌方式" Style="{StaticResource Body}"/>
+                            <TextBlock Text="自动＝能直连就用内置播放器，不行再交给网易云客户端" Style="{StaticResource Caption}" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <RadioButton x:Name="ModeAuto" Content="自动" Style="{StaticResource ChipToggle}"
+                                         GroupName="pm" Tag="auto" Checked="PlayMode_Checked" Margin="0,0,6,0"/>
+                            <RadioButton x:Name="ModeBuiltin" Content="内置播放器" Style="{StaticResource ChipToggle}"
+                                         GroupName="pm" Tag="builtin" Checked="PlayMode_Checked" Margin="0,0,6,0"/>
+                            <RadioButton x:Name="ModeClient" Content="网易云客户端" Style="{StaticResource ChipToggle}"
+                                         GroupName="pm" Tag="client" Checked="PlayMode_Checked"/>
+                        </StackPanel>
+                    </Grid>
+                    <Border Height="1" Background="{DynamicResource Border}" Margin="18,0"/>
+                    <Grid Margin="18,10">
+                        <StackPanel>
+                            <TextBlock Text="网易云 Cookie" Style="{StaticResource Body}"/>
+                            <TextBlock Text="内置播放器要用它取直链；留空只能放免费歌" Style="{StaticResource Caption}" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <TextBox x:Name="CookieBox" Style="{StaticResource Input}" Width="340" FontSize="11.5"
+                                 HorizontalContentAlignment="Left" Padding="10,8" LostFocus="Cookie_LostFocus"/>
+                    </Grid>
+                    <Border Height="1" Background="{DynamicResource Border}" Margin="18,0"/>
+                    <Grid Margin="18,10">
+                        <StackPanel>
+                            <TextBlock Text="点歌流程" Style="{StaticResource Body}"/>
+                            <TextBlock x:Name="StepsText" Text="默认流程" Style="{StaticResource Caption}" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <Button Content="编辑流程" Style="{StaticResource GhostButton}" Padding="12,8" Margin="0,0,8,0"
+                                    Click="EditSteps_Click"/>
+                            <Button Content="还原默认" Style="{StaticResource GhostButton}" Padding="12,8"
+                                    Click="ResetSteps_Click"/>
+                        </StackPanel>
+                    </Grid>
+                    <Border Height="1" Background="{DynamicResource Border}" Margin="18,0"/>
+                    <Grid Margin="18,10,18,16">
+                        <StackPanel>
+                            <TextBlock Text="B 站防登录扩展" Style="{StaticResource Body}"/>
+                            <TextBlock Text="释放一个浏览器扩展，自动关掉 B 站的登录弹窗" Style="{StaticResource Caption}" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <TextBox x:Name="BrowserExtDirBox" Style="{StaticResource Input}" Width="210" FontSize="12"
+                                     LostFocus="BrowserExtDir_LostFocus"/>
+                            <Button Content="选择" Style="{StaticResource GhostButton}" Padding="12,8" Margin="8,0,0,0"
+                                    Click="ChooseBrowserExtDir_Click"/>
+                            <Button Content="释放扩展" Style="{StaticResource PrimaryButton}" Padding="16,8" Margin="8,0,0,0"
+                                    Click="ExportBrowserExt_Click"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
             <!-- 数据 -->
             <Border Style="{StaticResource Panel}" Margin="0,16,0,0" Padding="0">
                 <StackPanel>
@@ -291,11 +349,50 @@
                     <Border Height="1" Background="{DynamicResource Border}" Margin="18,0"/>
                     <Grid Margin="18,10">
                         <StackPanel>
-                            <TextBlock Text="上课自动结束网易云" Style="{StaticResource Body}"/>
-                            <TextBlock Text="一打铃就把网易云关掉，不让音乐盖过老师" Style="{StaticResource Caption}" Margin="0,3,0,0"/>
+                            <TextBlock Text="上课前自动停掉正在放的东西" Style="{StaticResource Body}"/>
+                            <TextBlock Text="总开关；提前多少秒、停哪些，见下面几行" Style="{StaticResource Caption}" Margin="0,3,0,0"/>
                         </StackPanel>
-                        <CheckBox x:Name="SwKillClass" Style="{StaticResource Switch}" HorizontalAlignment="Right"
-                                  VerticalAlignment="Center" Tag="KillNetEaseOnClass" Checked="Switch_Toggled" Unchecked="Switch_Toggled"/>
+                        <CheckBox x:Name="SwCloseOnClass" Style="{StaticResource Switch}" HorizontalAlignment="Right"
+                                  VerticalAlignment="Center" Tag="CloseOnClass" Checked="Switch_Toggled" Unchecked="Switch_Toggled"/>
+                    </Grid>
+                    <Border Height="1" Background="{DynamicResource Border}" Margin="18,0"/>
+                    <Grid Margin="18,10">
+                        <StackPanel>
+                            <TextBlock Text="提前量" Style="{StaticResource Body}"/>
+                            <TextBlock Text="上课前多少秒开始停；0 = 正好打铃那一刻停" Style="{StaticResource Caption}" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <TextBox x:Name="CloseLeadBox" Style="{StaticResource Input}" Width="72" FontSize="12"
+                                     HorizontalContentAlignment="Center" LostFocus="Number_LostFocus" Tag="CloseLeadSeconds"/>
+                            <TextBlock Text="秒" Style="{StaticResource Caption}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+                    <Border Height="1" Background="{DynamicResource Border}" Margin="18,0"/>
+                    <Grid Margin="18,10">
+                        <StackPanel>
+                            <TextBlock Text="停掉内置播放器" Style="{StaticResource Body}"/>
+                            <TextBlock Text="软件自己在放歌时直接暂停" Style="{StaticResource Caption}" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <CheckBox x:Name="SwStopBuiltin" Style="{StaticResource Switch}" HorizontalAlignment="Right"
+                                  VerticalAlignment="Center" Tag="StopBuiltinOnClass" Checked="Switch_Toggled" Unchecked="Switch_Toggled"/>
+                    </Grid>
+                    <Border Height="1" Background="{DynamicResource Border}" Margin="18,0"/>
+                    <Grid Margin="18,10">
+                        <StackPanel>
+                            <TextBlock Text="关闭网易云客户端" Style="{StaticResource Body}"/>
+                            <TextBlock Text="把 cloudmusic.exe 整个结束掉" Style="{StaticResource Caption}" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <CheckBox x:Name="SwCloseClient" Style="{StaticResource Switch}" HorizontalAlignment="Right"
+                                  VerticalAlignment="Center" Tag="CloseClientOnClass" Checked="Switch_Toggled" Unchecked="Switch_Toggled"/>
+                    </Grid>
+                    <Border Height="1" Background="{DynamicResource Border}" Margin="18,0"/>
+                    <Grid Margin="18,10">
+                        <StackPanel>
+                            <TextBlock Text="只关 B 站那个标签页" Style="{StaticResource Body}"/>
+                            <TextBlock Text="不关整个浏览器，只关放歌的那一页" Style="{StaticResource Caption}" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <CheckBox x:Name="SwCloseBili" Style="{StaticResource Switch}" HorizontalAlignment="Right"
+                                  VerticalAlignment="Center" Tag="CloseBiliTabOnClass" Checked="Switch_Toggled" Unchecked="Switch_Toggled"/>
                     </Grid>
                     <Border Height="1" Background="{DynamicResource Border}" Margin="18,0"/>
                     <Grid Margin="18,10,18,16">

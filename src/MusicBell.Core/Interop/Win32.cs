@@ -12,6 +12,9 @@ public static class Win32
     public const byte VK_CONTROL = 0x11;
     public const byte VK_RETURN = 0x0D;
     public const byte VK_MENU = 0x12;
+    public const byte VK_SHIFT = 0x10;
+    public const byte VK_LWIN = 0x5B;
+    public const uint GA_ROOT = 2;
     public const byte VK_A = 0x41;
     public const byte VK_V = 0x56;
     public const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
@@ -35,11 +38,26 @@ public static class Win32
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
     [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
     [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr hWnd, ref POINT lpPoint);
+    [DllImport("user32.dll")] public static extern bool ScreenToClient(IntPtr hWnd, ref POINT lpPoint);
     [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
     [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, int dx, int dy, uint dwData, IntPtr dwExtraInfo);
     [DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, IntPtr dwExtraInfo);
     [DllImport("user32.dll")] public static extern bool SwitchToThisWindow(IntPtr hWnd, bool fAltTab);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+    [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT point);
+    [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr hWnd, uint flags);
+    [DllImport("user32.dll")] public static extern bool GetCursorPos(out POINT point);
+    [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
+
+    /// <summary>取窗口标题。</summary>
+    public static string Title(IntPtr hWnd)
+    {
+        if (hWnd == IntPtr.Zero) return "";
+        var sb = new StringBuilder(512);
+        GetWindowText(hWnd, sb, sb.Capacity);
+        return sb.ToString();
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT { public int Left, Top, Right, Bottom; }

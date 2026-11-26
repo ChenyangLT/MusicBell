@@ -4,8 +4,13 @@ public enum PlayMethod
 {
     SearchBox,
     DirectUrl,
+    Builtin,
+    Browser,
     Failed
 }
+
+/// <summary>交给内置播放器播的一首歌。</summary>
+public sealed record PlayerTrack(long SongId, string Title, string Artist = "", string Query = "", string? CoverUrl = null);
 
 public sealed record PlayResult
 {

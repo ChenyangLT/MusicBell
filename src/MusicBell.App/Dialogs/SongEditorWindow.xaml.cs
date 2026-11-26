@@ -15,6 +15,7 @@ public partial class SongEditorWindow : Window
     private readonly DateTime _date;
     private readonly string? _selfId;
     private string _repeat;
+    private string _sourceKind = SongSources.Netease;
     private bool _conflictConfirmed;
     private DateTime? _suggestedShift;
 
@@ -36,6 +37,10 @@ public partial class SongEditorWindow : Window
         _selfId = isNew ? null : _source.Id;
         EnabledSwitch.IsChecked = _source.Enabled;
 
+        _sourceKind = _source.Source == SongSources.Bili ? SongSources.Bili : SongSources.Netease;
+        if (_sourceKind == SongSources.Bili) SrcBili.IsChecked = true;
+        else SrcNet.IsChecked = true;
+
         DateText.Text = _date.ToString("yyyy年M月d日 dddd", new CultureInfo("zh-CN"));
 
         RepeatNone.IsChecked = _repeat == RepeatModes.None;
@@ -50,11 +55,31 @@ public partial class SongEditorWindow : Window
         };
     }
 
+    private void EditorSrc_Checked(object sender, RoutedEventArgs e)
+    {
+        if (SrcNet is null || SrcBili is null) return;
+        _sourceKind = SrcBili.IsChecked == true ? SongSources.Bili : SongSources.Netease;
+        if (HintText is not null)
+            HintText.Text = _sourceKind == SongSources.Bili
+                ? "B 站视频：到点会在浏览器里打开这一页"
+                : "写在网易云搜索框里的内容，建议“歌手 歌名”";
+        _ = LoadCoverAsync();
+    }
+
     private async System.Threading.Tasks.Task LoadCoverAsync()
     {
-        if (!long.TryParse(_source.SongId, out var id) || id <= 0) return;
-        var cached = CoverService.TryCached(id);
-        if (cached is null) cached = await CoverService.GetAsync(id, null).ConfigureAwait(true);
+        ImageSource? cached;
+        if (_sourceKind == SongSources.Bili)
+        {
+            cached = CoverService.TryCachedBili(_source.SongId);
+            if (cached is null) cached = await CoverService.GetBiliAsync(_source.SongId, _source.CoverUrl).ConfigureAwait(true);
+        }
+        else
+        {
+            if (!long.TryParse(_source.SongId, out var id) || id <= 0) return;
+            cached = CoverService.TryCached(id);
+            if (cached is null) cached = await CoverService.GetAsync(id, _source.CoverUrl).ConfigureAwait(true);
+        }
         if (cached is null) return;
         CoverBox.Background = CoverService.ToBrush(cached);
         CoverBox.Visibility = Visibility.Visible;
@@ -187,6 +212,15 @@ public partial class SongEditorWindow : Window
 
         var result = _source.Clone();
         result.Title = title;
+        result.Source = _sourceKind;
+        if (_sourceKind == SongSources.Bili)
+        {
+            result.Url = string.IsNullOrWhiteSpace(_source.Url) ? title : _source.Url;
+        }
+        else
+        {
+            result.Url = null;
+        }
         result.Time = at;
         result.Label = string.IsNullOrWhiteSpace(LabelInput.Text) ? null : LabelInput.Text.Trim();
         result.Repeat = _repeat;

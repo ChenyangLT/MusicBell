@@ -1,5 +1,5 @@
 ﻿<# MusicBell 一键打包脚本
-   输出：dist\MusicBell\（主程序 + plugin 子目录）以及 dist\MusicBell-1.0.0-win-x64.zip #>
+   输出：dist\MusicBell\（主程序 + plugin 子目录）以及 dist\MusicBell-1.2.0-win-x64.zip #>
 param(
     [switch]$FrameworkDependent,   # 依赖系统已安装的 .NET 8 桌面运行时（体积小）
     [switch]$NoZip,
@@ -10,7 +10,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $dist = Join-Path $root "dist"
 $out  = Join-Path $dist "MusicBell"
-$ver  = "1.1.0"
+$ver  = "1.2.0"
 
 Write-Host "== 停止正在运行的 MusicBell ==" -ForegroundColor Cyan
 Get-Process -Name MusicBell -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using MusicBell.Core.Models;
@@ -50,8 +51,19 @@ public partial class SettingsView : UserControl
             ThemeSystem.IsChecked = cfg.Theme == ThemeService.System;
 
             SwBlockClass.IsChecked = cfg.BlockDuringClass;
-            SwKillClass.IsChecked = cfg.KillNetEaseOnClass;
+            SwCloseOnClass.IsChecked = cfg.CloseOnClass;
+            CloseLeadBox.Text = cfg.CloseLeadSeconds.ToString(CultureInfo.InvariantCulture);
+            SwStopBuiltin.IsChecked = cfg.StopBuiltinOnClass;
+            SwCloseClient.IsChecked = cfg.CloseClientOnClass;
+            SwCloseBili.IsChecked = cfg.CloseBiliTabOnClass;
             ClassStatusText.Text = DescribeClassSchedule(cfg);
+
+            ModeAuto.IsChecked = cfg.PlaybackMethod == PlaybackMethods.Auto;
+            ModeBuiltin.IsChecked = cfg.PlaybackMethod == PlaybackMethods.Builtin;
+            ModeClient.IsChecked = cfg.PlaybackMethod == PlaybackMethods.Client;
+            CookieBox.Text = cfg.MusicCookie ?? "";
+            BrowserExtDirBox.Text = cfg.BrowserPluginExportDir ?? DefaultBrowserExtDir();
+            RefreshStepsText();
 
             SwUpdate.IsChecked = cfg.CheckUpdateOnStart;
             RepoBox.Text = cfg.GitHubRepo ?? "ChenyangLT/MusicBell";
@@ -186,7 +198,10 @@ public partial class SettingsView : UserControl
             case "OpenNowPlaying": cfg.OpenNowPlaying = on; break;
             case "CloseNetEaseAfterPlay": cfg.CloseNetEaseAfterPlay = on; break;
             case "BlockDuringClass": cfg.BlockDuringClass = on; break;
-            case "KillNetEaseOnClass": cfg.KillNetEaseOnClass = on; break;
+            case "CloseOnClass": cfg.CloseOnClass = on; break;
+            case "StopBuiltinOnClass": cfg.StopBuiltinOnClass = on; break;
+            case "CloseClientOnClass": cfg.CloseClientOnClass = on; break;
+            case "CloseBiliTabOnClass": cfg.CloseBiliTabOnClass = on; break;
             case "CheckUpdateOnStart": cfg.CheckUpdateOnStart = on; break;
             case "EnableProtocol":
                 cfg.EnableProtocol = on;
@@ -249,6 +264,10 @@ public partial class SettingsView : UserControl
             case "AdvanceSeconds":
                 if (!int.TryParse(text, out var adv)) { SyncFromConfig(); return; }
                 cfg.AdvanceSeconds = Math.Clamp(adv, 0, 600);
+                break;
+            case "CloseLeadSeconds":
+                if (!int.TryParse(text, out var lead)) { SyncFromConfig(); return; }
+                cfg.CloseLeadSeconds = Math.Clamp(lead, 0, 1800);
                 break;
         }
 
@@ -410,6 +429,99 @@ public partial class SettingsView : UserControl
         catch (Exception ex)
         {
             ToastWindow.Show("释放插件失败", ex.Message, "", ToastKind.Error);
+        }
+    }
+
+    private void PlayMode_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        if ((sender as FrameworkElement)?.Tag is not string mode) return;
+        App.Current.Storage.Config.PlaybackMethod = mode;
+        Save();
+    }
+
+    private void Cookie_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        var text = CookieBox.Text.Trim();
+        App.Current.Storage.Config.MusicCookie = string.IsNullOrWhiteSpace(text) ? null : text;
+        Save();
+    }
+
+    private void RefreshStepsText()
+    {
+        var cfg = App.Current.Storage.Config;
+        var steps = cfg.ClientSteps is { Count: > 0 } ? cfg.ClientSteps : DefaultPlaySteps.Create(cfg);
+        var head = cfg.ClientSteps is { Count: > 0 } ? "自定义" : "默认";
+        var chain = string.Join(" → ", steps.Select(s => string.IsNullOrWhiteSpace(s.Name) ? s.Kind : s.Name).Take(6));
+        StepsText.Text = $"{head} {steps.Count} 步 · {chain}";
+    }
+
+    private void EditSteps_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Dialogs.PlayStepsWindow { Owner = Window.GetWindow(this) };
+        dlg.ShowDialog();
+        SyncFromConfig();
+    }
+
+    private void ResetSteps_Click(object sender, RoutedEventArgs e)
+    {
+        App.Current.Storage.Config.ClientSteps = null;
+        Save();
+        RefreshStepsText();
+        ToastWindow.Show("已还原默认流程", "到点会按默认的 7 步走", "", ToastKind.Success);
+    }
+
+    private static string DefaultBrowserExtDir()
+    {
+        var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+        return Path.Combine(desktop, "MusicBell 浏览器扩展");
+    }
+
+    private void BrowserExtDir_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        var text = BrowserExtDirBox.Text.Trim();
+        App.Current.Storage.Config.BrowserPluginExportDir = string.IsNullOrWhiteSpace(text) ? null : text;
+        Save();
+    }
+
+    private void ChooseBrowserExtDir_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Forms.FolderBrowserDialog
+        {
+            Description = "选择一个文件夹用来放浏览器扩展",
+            UseDescriptionForTitle = true,
+            ShowNewFolderButton = true
+        };
+        if (dialog.ShowDialog() != Forms.DialogResult.OK) return;
+        BrowserExtDirBox.Text = dialog.SelectedPath;
+        App.Current.Storage.Config.BrowserPluginExportDir = dialog.SelectedPath;
+        Save();
+    }
+
+    private void ExportBrowserExt_Click(object sender, RoutedEventArgs e)
+    {
+        var target = BrowserExtDirBox.Text.Trim();
+        if (target.Length == 0) target = DefaultBrowserExtDir();
+
+        try
+        {
+            var result = BrowserExtensionExporter.Export(target);
+            if (!result.Success)
+            {
+                ToastWindow.Show("释放扩展失败", result.Message, "", ToastKind.Error);
+                return;
+            }
+
+            App.Current.Storage.Config.BrowserPluginExportDir = target;
+            Save();
+            ToastWindow.Show("扩展已释放", result.Message, "浏览器里「加载解压缩的扩展」选它即可", ToastKind.Success);
+            if (result.Folder is not null) OpenFolder(result.Folder);
+        }
+        catch (Exception ex)
+        {
+            ToastWindow.Show("释放扩展失败", ex.Message, "", ToastKind.Error);
         }
     }
 

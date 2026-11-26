@@ -12,8 +12,10 @@ namespace MusicBell.App;
 public partial class MainWindow : Window
 {
     private readonly CalendarView _calendar;
+    private readonly PlayerView _player;
     private readonly SchedulesView _schedules;
     private readonly PeopleView _people;
+    private readonly StatsView _stats;
     private readonly SettingsView _settings;
     private readonly AboutView _about;
     private readonly DispatcherTimer _clock = new() { Interval = TimeSpan.FromSeconds(20) };
@@ -24,8 +26,10 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         _calendar = new CalendarView();
+        _player = new PlayerView();
         _schedules = new SchedulesView();
         _people = new PeopleView();
+        _stats = new StatsView();
         _settings = new SettingsView();
         _about = new AboutView();
 
@@ -66,8 +70,10 @@ public partial class MainWindow : Window
     public void RefreshAll()
     {
         _calendar.Reload();
+        _player.Reload();
         _schedules.Reload();
         _people.Reload();
+        _stats.Reload();
         _settings.SyncFromConfig();
         UpdateNext();
         UpdateClass();
@@ -80,6 +86,10 @@ public partial class MainWindow : Window
     public void GoToSettings() => NavSettings.IsChecked = true;
 
     public void GoToCalendar() => NavCalendar.IsChecked = true;
+
+    public void GoToPlayer() => NavPlayer.IsChecked = true;
+
+    public void GoToStats() => NavStats.IsChecked = true;
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
@@ -210,16 +220,20 @@ public partial class MainWindow : Window
         var tag = (sender as FrameworkElement)?.Tag as string ?? "calendar";
         Host.Content = tag switch
         {
+            "player" => _player,
             "schedules" => _schedules,
             "people" => _people,
+            "stats" => _stats,
             "settings" => _settings,
             "about" => _about,
             _ => _calendar
         };
         switch (tag)
         {
+            case "player": _player.Reload(); break;
             case "schedules": _schedules.Reload(); break;
             case "people": _people.Reload(); break;
+            case "stats": _stats.Reload(); break;
             case "settings": _settings.SyncFromConfig(); break;
             case "calendar": _calendar.Reload(); break;
         }

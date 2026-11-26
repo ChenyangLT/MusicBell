@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Threading;
+using MusicBell.App.Services;
 using MusicBell.Core.Models;
 using MusicBell.Core.Services;
 using Drawing = System.Drawing;
@@ -13,6 +14,9 @@ public partial class App : Application
 
     public StorageService Storage { get; private set; } = null!;
     public SongPlayerService Player { get; private set; } = null!;
+
+    /// <summary>内置播放器（网易云直链 + 歌词）。</summary>
+    public PlayerService BuiltinPlayer { get; private set; } = null!;
     public SongScheduler Scheduler { get; private set; } = null!;
     public SingleInstance Single { get; private set; } = null!;
     public MainWindow? Shell { get; private set; }
@@ -42,6 +46,8 @@ public partial class App : Application
         Storage = StorageService.Load();
         ThemeService.Apply(Storage.Config.Theme);
         Player = new SongPlayerService(Storage);
+        BuiltinPlayer = new PlayerService { Volume = Math.Clamp(Storage.Config.PlayerVolume, 0, 1) };
+        Player.BuiltinPlayRequested += OnBuiltinPlayRequested;
         Scheduler = new SongScheduler(Storage);
         Scheduler.Due += OnDue;
         Scheduler.Start();
@@ -121,7 +127,7 @@ public partial class App : Application
 
     // ---------- 课表联动 ----------
     private DispatcherTimer? _classTimer;
-    private bool _inClassLast;
+    private string? _closedClassKey;
 
     /// <summary>把排歌的封面慢慢缓存到本地，界面一打开就有图。</summary>
     private static async Task PrefetchCoversAsync()
@@ -176,21 +182,97 @@ public partial class App : Application
     {
         try
         {
-            var dir = ClassIslandSchedule.LocateDataDir(Storage.Config.ClassIslandDir);
-            if (string.IsNullOrWhiteSpace(dir)) { _inClassLast = false; return; }
+            var cfg = Storage.Config;
+            var dir = ClassIslandSchedule.LocateDataDir(cfg.ClassIslandDir);
+            if (string.IsNullOrWhiteSpace(dir)) return;
             var snap = ClassIslandSchedule.Get(dir!, DateTime.Today);
-            if (snap is null) { _inClassLast = false; return; }
-            var inClass = snap.IsInClass(DateTime.Now);
-            if (!_inClassLast && inClass && Storage.Config.KillNetEaseOnClass)
-            {
-                AppLog.Info("上课了，按设置关闭网易云");
-                _ = Task.Run(() => NetEaseAutomation.CloseNetEase(msg => AppLog.Info(msg)));
-            }
-            _inClassLast = inClass;
+            if (snap is null) return;
+
+            var now = DateTime.Now;
+            var lead = Math.Clamp(cfg.CloseLeadSeconds, 0, 1800);
+            var inClass = snap.IsInClass(now);
+            var current = snap.CurrentClass(now);
+            var next = snap.NextClass(now);
+            var start = current?.Start ?? next?.Start;
+            if (start is null) return;
+
+            var key = start.Value.ToString("yyyyMMddHHmm");
+            if (key == _closedClassKey) return;
+            var untilStart = (start.Value - now).TotalSeconds;
+            // 课中（含提前量已过）或正好落在「上课前 N 秒」窗口里才动手
+            var due = inClass ? untilStart <= lead : untilStart <= lead && untilStart > -5;
+            if (!due) return;
+            _closedClassKey = key;
+            if (!cfg.CloseOnClass) return;
+            CloseForClass();
         }
         catch (Exception ex)
         {
             AppLog.Warn("课表检查失败：" + ex.Message);
+        }
+    }
+
+    /// <summary>上课了：按设置关掉正在放的东西（内置播放器 / 网易云 / B 站那一页）。</summary>
+    public void CloseForClass()
+    {
+        var cfg = Storage.Config;
+        var parts = new List<string>();
+        if (cfg.StopBuiltinOnClass && BuiltinPlayer.HasTrack)
+        {
+            BuiltinPlayer.Stop();
+            parts.Add("内置播放器");
+        }
+        if (cfg.CloseClientOnClass)
+        {
+            parts.Add("网易云");
+            _ = Task.Run(() => NetEaseAutomation.CloseNetEase(msg => AppLog.Info(msg)));
+        }
+        if (cfg.CloseBiliTabOnClass)
+        {
+            parts.Add("B 站标签页");
+            _ = Task.Run(() => BrowserTabs.CloseAll(Storage.DataDir, msg => AppLog.Info(msg)));
+        }
+        if (parts.Count == 0) return;
+        AppLog.Info("到上课时间（提前 " + cfg.CloseLeadSeconds + " 秒），关闭：" + string.Join("、", parts));
+        if (cfg.ShowNotification)
+            ToastWindow.Show("上课了", "已关闭 " + string.Join("、", parts),
+                cfg.CloseLeadSeconds > 0 ? "提前 " + cfg.CloseLeadSeconds + " 秒关的" : "整点关闭", ToastKind.Info);
+    }
+
+    // ---------- 内置播放器 ----------
+    private void OnBuiltinPlayRequested(PlayerTrack track) =>
+        Dispatcher.BeginInvoke(new Action(async () => await PlayBuiltinAsync(track)));
+
+    private async Task PlayBuiltinAsync(PlayerTrack track)
+    {
+        try
+        {
+            var t = track;
+            if (t.SongId > 0)
+            {
+                try
+                {
+                    var details = await new NeteaseSearchClient().DetailsAsync(new[] { t.SongId }).ConfigureAwait(true);
+                    var d = details.FirstOrDefault();
+                    if (d is not null)
+                        t = t with
+                        {
+                            Title = string.IsNullOrWhiteSpace(d.Name) ? t.Title : d.Name,
+                            Artist = d.Artist,
+                            CoverUrl = string.IsNullOrWhiteSpace(d.CoverUrl) ? t.CoverUrl : d.CoverUrl
+                        };
+                }
+                catch { }
+            }
+
+            var ok = await BuiltinPlayer.PlayAsync(t, Storage.Config.MusicCookie, m => AppLog.Info(m)).ConfigureAwait(true);
+            if (!ok)
+                ToastWindow.Show("内置播放器没放起来", BuiltinPlayer.LastError ?? t.Title,
+                    "设置 → 播放器 里可以改成走客户端", ToastKind.Error);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn("内置播放器异常：" + ex.Message);
         }
     }
 
@@ -318,6 +400,28 @@ public partial class App : Application
             ToastWindow.Show("没能自动播放", result.Message, "可在设置里调整网易云路径", ToastKind.Error);
         else
             ToastWindow.Show("已开始搜索播放", query, $"耗时 {result.Elapsed.TotalMilliseconds:F0} ms", ToastKind.Success);
+    }
+
+    /// <summary>界面里手动播放某条排歌（网易云 / B 站都走这里）。</summary>
+    public void PlayEntry(SongEntry entry)
+    {
+        if (entry is null) return;
+        if (Storage.Config.ShowNotification)
+            ToastWindow.Show("正在点歌", entry.Display, SongSources.Name(entry.Source), ToastKind.Playing);
+        _ = Task.Run(async () =>
+        {
+            var result = await Player.PlayAsync(entry).ConfigureAwait(false);
+            AppLog.Info($"手动点歌：{entry.Display} → {result.Success} / {result.Message}");
+            await Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (!result.Success)
+                    ToastWindow.Show("没能自动播放", result.Message, "可在设置里调整播放方式", ToastKind.Error);
+                else if (Storage.Config.ShowNotification)
+                    ToastWindow.Show("已开始播放", entry.Display, result.Message, ToastKind.Success);
+                Storage.SaveSongs();
+                Shell?.RefreshAll();
+            }));
+        });
     }
 
     public void PlayNextNow()

@@ -54,8 +54,16 @@
                                  FontSize="14" Padding="12,10" TextChanged="TitleInput_TextChanged"/>
                     </StackPanel>
                 </Grid>
-                <TextBlock Text="写在网易云搜索框里的内容，建议“歌手 歌名”" Style="{StaticResource Caption}"
-                           Margin="2,6,0,0"/>
+                <StackPanel Orientation="Horizontal" Margin="2,10,0,0">
+                    <TextBlock Text="来源" Style="{StaticResource FieldLabel}" Margin="0,0,8,0"
+                               VerticalAlignment="Center"/>
+                    <RadioButton x:Name="SrcNet" Style="{StaticResource ChipToggle}" GroupName="esrc" Content="网易云"
+                                 IsChecked="True" Checked="EditorSrc_Checked" Margin="0,0,6,0"/>
+                    <RadioButton x:Name="SrcBili" Style="{StaticResource ChipToggle}" GroupName="esrc" Content="B 站"
+                                 Checked="EditorSrc_Checked"/>
+                </StackPanel>
+                <TextBlock x:Name="HintText" Text="写在网易云搜索框里的内容，建议“歌手 歌名”"
+                           Style="{StaticResource Caption}" Margin="2,6,0,0" TextWrapping="Wrap"/>
 
                 <Grid Margin="0,16,0,0">
                     <Grid.ColumnDefinitions>

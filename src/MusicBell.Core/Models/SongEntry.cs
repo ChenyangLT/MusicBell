@@ -25,6 +25,15 @@ public sealed class SongEntry
     /// <summary>点歌人（来自名单，可留空）。</summary>
     public string? Requester { get; set; }
 
+    /// <summary>音乐源：netease / bili。</summary>
+    public string Source { get; set; } = SongSources.Netease;
+
+    /// <summary>B 站视频链接（Source=bili 时用）。</summary>
+    public string? Url { get; set; }
+
+    /// <summary>封面地址（B 站搜索结果里的图；网易云可留空，按 id 查）。</summary>
+    public string? CoverUrl { get; set; }
+
     /// <summary>歌曲时长（毫秒），用于「放完自动关网易云」。0 = 未知。</summary>
     public int DurationMs { get; set; }
 
@@ -68,6 +77,28 @@ public sealed class SongEntry
         RepeatModes.Daily => "每天",
         RepeatModes.Weekly => "每周" + "日一二三四五六"[(int)Time.DayOfWeek],
         _ => ""
+    };
+}
+
+public static class SongSources
+{
+    public const string Netease = "netease";
+    public const string Bili = "bili";
+
+    public static string Name(string? source) => source == Bili ? "B 站" : "网易云";
+}
+
+public static class PlaybackMethods
+{
+    public const string Auto = "auto";
+    public const string Builtin = "builtin";
+    public const string Client = "client";
+
+    public static string Name(string? method) => method switch
+    {
+        Builtin => "内置播放器",
+        Client => "网易云客户端",
+        _ => "自动选择"
     };
 }
 

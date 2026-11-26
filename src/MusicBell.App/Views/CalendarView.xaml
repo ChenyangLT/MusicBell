@@ -96,6 +96,29 @@
 
                 <Grid DockPanel.Dock="Bottom" Margin="0,10,0,0">
                     <StackPanel>
+                        <!-- 搜索源 -->
+                        <StackPanel Orientation="Horizontal" Margin="2,0,0,8">
+                            <RadioButton x:Name="SrcNet" Style="{StaticResource ChipToggle}" GroupName="src" IsChecked="True"
+                                         Checked="Src_Checked" Margin="0,0,6,0" ToolTip="在网易云里搜歌（默认）">
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Width="14" Height="14" CornerRadius="4" Background="#E8474F" Margin="0,0,6,0">
+                                        <TextBlock Text="&#x266B;" FontSize="9" Foreground="White"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <TextBlock Text="网易云" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton x:Name="SrcBili" Style="{StaticResource ChipToggle}" GroupName="src"
+                                         Checked="Src_Checked" ToolTip="在 B 站里搜视频，到点在浏览器打开">
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Width="14" Height="14" CornerRadius="4" Background="#FB7299" Margin="0,0,6,0">
+                                        <TextBlock Text="&#xE774;" FontFamily="{DynamicResource IconFont}" FontSize="9" Foreground="White"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <TextBlock Text="B 站" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </RadioButton>
+                        </StackPanel>
                         <Border Background="{DynamicResource FieldBg}" BorderBrush="{DynamicResource Border}"
                                 BorderThickness="1" CornerRadius="11" Height="42" x:Name="SearchShell">
                             <Grid>

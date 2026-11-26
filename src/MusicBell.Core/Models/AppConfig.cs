@@ -87,6 +87,40 @@ public sealed class AppConfig
 
     public double NowPlayingY { get; set; } = 0.940;
 
+    // ------- 播放方式（第三批） -------
+    /// <summary>播放方式：auto = 内置播放器优先，放不了再模拟点击；builtin = 只用内置播放器；client = 只用网易云客户端模拟点击。</summary>
+    public string PlaybackMethod { get; set; } = PlaybackMethods.Auto;
+
+    /// <summary>网易云登录 Cookie（如 MUSIC_U=...），内置播放器用它放会员歌。</summary>
+    public string? MusicCookie { get; set; }
+
+    /// <summary>内置播放器音量 0~1。</summary>
+    public double PlayerVolume { get; set; } = 0.8;
+
+    /// <summary>自定义的点歌流程（空 = 用默认流程）。</summary>
+    public List<PlayStep>? ClientSteps { get; set; }
+
+    /// <summary>上课前多少秒关闭播放；0 = 到点（上课开始）再关。</summary>
+    public int CloseLeadSeconds { get; set; }
+
+    /// <summary>上课前关闭正在放的东西（总开关）。</summary>
+    public bool CloseOnClass { get; set; }
+
+    /// <summary>上课时关闭网易云客户端。</summary>
+    public bool CloseClientOnClass { get; set; }
+
+    /// <summary>上课时关闭 B 站标签页（只关那一页，不动浏览器）。</summary>
+    public bool CloseBiliTabOnClass { get; set; }
+
+    /// <summary>上课时停下内置播放器。</summary>
+    public bool StopBuiltinOnClass { get; set; } = true;
+
+    /// <summary>上次选中的音乐源：netease / bili。</summary>
+    public string LastSource { get; set; } = "netease";
+
+    /// <summary>浏览器插件释放目录（上次使用）。</summary>
+    public string? BrowserPluginExportDir { get; set; }
+
     // ------- 课表联动 -------
     /// <summary>ClassIsland 程序目录（空则自动探测桌面上的 ClassIsland 文件夹）。</summary>
     public string? ClassIslandDir { get; set; }

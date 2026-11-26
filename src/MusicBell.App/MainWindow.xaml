@@ -89,6 +89,12 @@
                                     <TextBlock Text="日历点歌" VerticalAlignment="Center" />
                                 </StackPanel>
                             </RadioButton>
+                            <RadioButton x:Name="NavPlayer" Style="{StaticResource NavItem}" GroupName="nav" Tag="player" Checked="Nav_Checked">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE768;" FontFamily="{DynamicResource IconFont}" FontSize="14" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                    <TextBlock Text="播放器" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </RadioButton>
                             <RadioButton x:Name="NavSchedules" Style="{StaticResource NavItem}" GroupName="nav" Tag="schedules" Checked="Nav_Checked">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE8FD;" FontFamily="{DynamicResource IconFont}" FontSize="15" VerticalAlignment="Center" Margin="0,0,10,0" />
@@ -99,6 +105,12 @@
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE716;" FontFamily="{DynamicResource IconFont}" FontSize="15" VerticalAlignment="Center" Margin="0,0,10,0" />
                                     <TextBlock Text="点歌人" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton x:Name="NavStats" Style="{StaticResource NavItem}" GroupName="nav" Tag="stats" Checked="Nav_Checked">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE9D9;" FontFamily="{DynamicResource IconFont}" FontSize="15" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                    <TextBlock Text="统计" VerticalAlignment="Center" />
                                 </StackPanel>
                             </RadioButton>
                             <RadioButton x:Name="NavSettings" Style="{StaticResource NavItem}" GroupName="nav" Tag="settings" Checked="Nav_Checked">

@@ -23,6 +23,9 @@ public sealed class StorageService
     /// <summary>点歌人名单。</summary>
     public PeopleStore People { get; private set; } = null!;
 
+    /// <summary>播放历史（统计页用）。</summary>
+    public PlayHistoryStore History { get; private set; } = null!;
+
     public event EventHandler? SongsChanged;
 
     public static StorageService Load(string? forcedDir = null)
@@ -33,6 +36,7 @@ public sealed class StorageService
         svc.EnsureDir();
         svc.ReadAll();
         svc.People = PeopleStore.Load(svc.DataDir);
+        svc.History = PlayHistoryStore.Load(svc.DataDir);
         AppLog.Init(svc.DataDir);
         AppLog.Info($"数据目录：{svc.DataDir}");
         return svc;
@@ -78,6 +82,13 @@ public sealed class StorageService
         {
             AppLog.Error("读取设置失败，使用默认设置", ex);
             Config = new AppConfig();
+        }
+
+        // 旧版本只有「上课铃响关网易云」：迁移成新的总开关 + 子开关。
+        if (Config.KillNetEaseOnClass && !Config.CloseOnClass)
+        {
+            Config.CloseOnClass = true;
+            Config.CloseClientOnClass = true;
         }
 
         try
@@ -139,7 +150,7 @@ public sealed class StorageService
         Directory.CreateDirectory(newDir);
         SaveConfig();
         SaveSongs();
-        foreach (var name in new[] { "config.json", "songs.json", "people.json" })
+        foreach (var name in new[] { "config.json", "songs.json", "people.json", "playlog.json" })
         {
             var src = Path.Combine(DataDir, name);
             if (File.Exists(src)) File.Copy(src, Path.Combine(newDir, name), true);
@@ -160,6 +171,7 @@ public sealed class StorageService
         EnsureDir();
         ReadAll();
         People = PeopleStore.Load(DataDir);
+        History = PlayHistoryStore.Load(DataDir);
         AppLog.Init(DataDir);
     }
 
