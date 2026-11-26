@@ -31,7 +31,11 @@ ClassIsland\data\Plugins\MusicBell.ClassIsland\
 2. 「添加自动化」→ 加一个触发（例如「上课」「下课」「定时」「当前时间状态变化」）。
 3. 在「触发行动」里点「添加行动」→ 选分组「音乐铃」下的：
    - **MusicBell 放一首歌**：填「歌名」（会原样交给网易云搜索框，建议写「歌手 歌名」）、可填「显示名」、可填 MusicBell.exe 的完整路径；
-   - **MusicBell 放下一首排歌**：让 MusicBell 立刻播放它自己排的下一首。
+   - **MusicBell 放下一首排歌**：让 MusicBell 立刻播放它自己排的下一首；
+   - **MusicBell 播放 / 暂停**：切内置播放器的暂停状态；
+   - **MusicBell 停止播放**：停掉正在放的内置播放器；
+   - **MusicBell 打开网易云音乐**：把客户端叫到前台（没开就启动）；
+   - **MusicBell 关闭网易云音乐**：直接结束 cloudmusic.exe，适合「放学」「午休结束」这类收尾。
 4. 保存（不需要点「保存」，设置是即时写入的），再打开自动化列表确认它是启用的。
 
 ## 三、协议参数
@@ -41,20 +45,37 @@ ClassIsland\data\Plugins\MusicBell.ClassIsland\
 ~~~text
 musicbell://play?q=周杰伦%20晴天&label=早读铃&id=186016&src=classisland
 musicbell://next?src=classisland
+musicbell://pause
+musicbell://stop
+musicbell://close
+musicbell://open
 ~~~
 
 | 参数 | 说明 |
 | --- | --- |
 | `q` | 歌名（必填），也是网易云搜索框里会出现的文字 |
 | `label` | 呼出提示里显示的名字，留空就用 `q` |
-| `id` | 网易云歌曲 ID（可选，目前只用于记录） |
+| `id` | 网易云歌曲 ID（可选；带上它时内置播放器可以直接播这一首，不用绕搜索） |
 | `src` | 来源标记，写日志用 |
+
+| 协议 | 作用 |
+| --- | --- |
+| `musicbell://play` | 放一首歌 |
+| `musicbell://next` | 放「下一个排歌」 |
+| `musicbell://pause` | 内置播放器播放 / 暂停 |
+| `musicbell://stop` | 停止内置播放器 |
+| `musicbell://open` | 打开（或前置）网易云客户端 |
+| `musicbell://close` | 关掉网易云客户端 |
 
 命令行等价写法：
 
 ~~~text
 MusicBell.exe --play "周杰伦 晴天" --label "早读铃"
 MusicBell.exe --play-next
+MusicBell.exe --pause
+MusicBell.exe --stop
+MusicBell.exe --close
+MusicBell.exe --open-native
 ~~~
 
 ## 四、注意

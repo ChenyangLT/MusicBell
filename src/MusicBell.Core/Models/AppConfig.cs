@@ -132,6 +132,12 @@ public sealed class AppConfig
     /// <summary>启动后检查一次更新。</summary>
     public bool CheckUpdateOnStart { get; set; } = true;
 
+    /// <summary>B 站点歌时把浏览器窗口最大化（系统调用，不模拟点击）。</summary>
+    public bool BiliMaximize { get; set; } = true;
+
+    /// <summary>B 站点歌时再按一下 F11 让页面全屏（仍然不是点击，只是快捷键）。</summary>
+    public bool BiliPageFullscreen { get; set; } = true;
+
     [JsonIgnore]
     public string NetEasePathResolved => string.IsNullOrWhiteSpace(NetEasePath) ? NetEaseLocator.GuessPath() : NetEasePath!;
 }

@@ -66,7 +66,9 @@ public sealed class SongPlayerService
             if (found.Count == 0) return PlayResult.Fail(query, "B 站没搜到这个视频");
             url = found[0].Url;
         }
-        var ok = await BrowserTabs.OpenAsync(_storage.DataDir, url!, query, log).ConfigureAwait(false);
+        var cfg = _storage.Config;
+        var ok = await BrowserTabs.OpenAsync(_storage.DataDir, url!, query,
+            cfg.BiliMaximize, cfg.BiliPageFullscreen, log).ConfigureAwait(false);
         if (ok) BrowserOpened?.Invoke(url!);
         sw.Stop();
         return ok

@@ -16,7 +16,6 @@ public partial class PlayerView : UserControl
     private readonly List<TextBlock> _lines = new();
     private readonly DispatcherTimer _refresh = new() { Interval = TimeSpan.FromSeconds(1) };
     private bool _dragging;
-    private bool _built;
     private PlayerService? _player;
 
     public PlayerView()
@@ -25,7 +24,7 @@ public partial class PlayerView : UserControl
         Loaded += (_, _) => Attach();
         Unloaded += (_, _) => Detach();
         _refresh.Tick += (_, _) => UpdateStatus();
-        ThemeService.Changed += _ => Dispatcher.BeginInvoke(new Action(() => { _built = false; Render(); }));
+        ThemeService.Changed += _ => Dispatcher.BeginInvoke(new Action(Render));
     }
 
     private void Attach()
@@ -104,13 +103,12 @@ public partial class PlayerView : UserControl
     {
         LyricPanel.Children.Clear();
         _lines.Clear();
-        _built = true;
-        if (doc is null || doc.Lines.Count == 0)
+        if (doc is null || !doc.HasLyrics)
         {
             LyricHint.Text = "没有歌词";
             var empty = new TextBlock
             {
-                Text = "这首歌还没有歌词",
+                Text = "网易云上这首歌还没有歌词",
                 FontSize = 13,
                 Margin = new Thickness(0, 18, 0, 0),
                 Foreground = ThemeService.Brush("TextFaint"),
@@ -118,7 +116,30 @@ public partial class PlayerView : UserControl
             LyricPanel.Children.Add(empty);
             return;
         }
-        LyricHint.Text = doc.HasTranslation ? "原文 + 翻译" : "逐句滚动";
+
+        if (doc.Lines.Count == 0)
+        {
+            // 只有纯文本歌词：整段铺开，不跟时间走。
+            LyricHint.Text = string.IsNullOrWhiteSpace(doc.Source) ? "纯文本歌词" : "纯文本歌词 · 取自 " + doc.Source;
+            foreach (var text in doc.PlainLines)
+            {
+                var tb = new TextBlock
+                {
+                    Text = text,
+                    FontSize = 14,
+                    LineHeight = 24,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 4, 0, 4),
+                    Foreground = ThemeService.Brush("TextDim"),
+                };
+                LyricPanel.Children.Add(tb);
+            }
+            return;
+        }
+
+        LyricHint.Text = !string.IsNullOrWhiteSpace(doc.Source)
+            ? "取自 " + doc.Source
+            : doc.HasTranslation ? "原文 + 翻译" : "逐句滚动";
         foreach (var line in doc.Lines)
         {
             var tb = new TextBlock

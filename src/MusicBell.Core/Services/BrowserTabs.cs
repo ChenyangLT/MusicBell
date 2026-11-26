@@ -49,7 +49,8 @@ public static class BrowserTabs
     }
 
     /// <summary>用默认浏览器打开 B 站视频，并记下这一页的标题特征。</summary>
-    public static async Task<bool> OpenAsync(string dataDir, string url, string titleHint, Action<string>? log = null)
+    public static async Task<bool> OpenAsync(string dataDir, string url, string titleHint,
+        bool maximize = true, bool pageFullscreen = false, Action<string>? log = null)
     {
         try
         {
@@ -64,6 +65,7 @@ public static class BrowserTabs
 
         var hint = MakeHint(titleHint, url);
         var found = await WaitForTitleAsync(hint, 12000).ConfigureAwait(false);
+        if (maximize || pageFullscreen) await FitBrowserAsync(hint, maximize, pageFullscreen, log).ConfigureAwait(false);
         var tabs = Load(dataDir);
         tabs.RemoveAll(t => string.Equals(t.Hint, hint, StringComparison.Ordinal));
         tabs.Add(new Tab { Url = url, Hint = found ? hint : hint, OpenedAt = DateTime.Now });
@@ -94,6 +96,51 @@ public static class BrowserTabs
         var end = idx;
         while (end < url.Length && (char.IsLetterOrDigit(url[end]))) end++;
         return url[idx..end];
+    }
+
+    /// <summary>
+    /// 把浏览器窗口放到最大；需要时再按一次 F11 让页面全屏。
+    /// 这里用的是 ShowWindow / 快捷键这类系统调用，不往网页里乱点，所以不会被页面布局带偏。
+    /// </summary>
+    private static async Task FitBrowserAsync(string hint, bool maximize, bool fullscreen, Action<string>? log)
+    {
+        var hwnd = IntPtr.Zero;
+        var start = Environment.TickCount64;
+        while (Environment.TickCount64 - start < 6000)
+        {
+            var windows = FindWindows(hint);
+            if (windows.Count > 0) { hwnd = windows[0]; break; }
+            await Task.Delay(300).ConfigureAwait(false);
+        }
+        if (hwnd == IntPtr.Zero)
+        {
+            log?.Invoke("没找到浏览器窗口，跳过最大化");
+            return;
+        }
+
+        if (maximize)
+        {
+            Win32.ShowWindow(hwnd, 3); // SW_MAXIMIZE
+            log?.Invoke("浏览器窗口已最大化");
+            await Task.Delay(450).ConfigureAwait(false);
+        }
+
+        if (!fullscreen) return;
+
+        // F11 只在浏览器自己在前台时才发，免得全屏落到别的程序上。
+        Win32.SetForegroundWindow(hwnd);
+        await Task.Delay(260).ConfigureAwait(false);
+        if (Win32.GetForegroundWindow() != hwnd)
+        {
+            log?.Invoke("浏览器没抢到前台，这次不按 F11");
+            return;
+        }
+        const byte vkF11 = 0x7A;
+        const uint keyUp = 0x0002;
+        Win32.keybd_event(vkF11, 0, 0, IntPtr.Zero);
+        await Task.Delay(60).ConfigureAwait(false);
+        Win32.keybd_event(vkF11, 0, keyUp, IntPtr.Zero);
+        log?.Invoke("页面已切到全屏（F11）");
     }
 
     private static async Task<bool> WaitForTitleAsync(string hint, int timeoutMs)

@@ -174,7 +174,7 @@ public sealed class PlayerService
 
         try
         {
-            var lrc = await NeteaseStreamClient.GetLyricAsync(track.SongId).ConfigureAwait(true);
+            var lrc = await NeteaseStreamClient.GetLyricAsync(track.SongId, track.Title).ConfigureAwait(true);
             if (token != _token) return;
             Lyrics = lrc;
             UpdateLyricIndex();

@@ -29,6 +29,7 @@ public partial class SettingsView : UserControl
             var cfg = app.Storage.Config;
 
             SwAutoStart.IsChecked = cfg.AutoStart;
+            RefreshAutoStartHint();
             SwSilentStart.IsChecked = cfg.SilentStart;
             SwTray.IsChecked = cfg.MinimizeToTray;
             SwNotify.IsChecked = cfg.ShowNotification;
@@ -63,6 +64,8 @@ public partial class SettingsView : UserControl
             ModeClient.IsChecked = cfg.PlaybackMethod == PlaybackMethods.Client;
             CookieBox.Text = cfg.MusicCookie ?? "";
             BrowserExtDirBox.Text = cfg.BrowserPluginExportDir ?? DefaultBrowserExtDir();
+            SwBiliMaximize.IsChecked = cfg.BiliMaximize;
+            SwBiliFullscreen.IsChecked = cfg.BiliPageFullscreen;
             RefreshStepsText();
 
             SwUpdate.IsChecked = cfg.CheckUpdateOnStart;
@@ -91,6 +94,16 @@ public partial class SettingsView : UserControl
     }
 
     private void Save() => App.Current.Storage.SaveConfig();
+
+    /// <summary>把开机自启的真实状态写在开关下面，省得「开关是开的但其实没生效」。</summary>
+    private void RefreshAutoStartHint()
+    {
+        if (AutoStartHint is null) return;
+        var (state, detail) = AutoStartService.Inspect();
+        var good = state is AutoStartState.Ok or AutoStartState.FolderOnly;
+        AutoStartHint.Text = (good ? "✓ " : "⚠ ") + detail;
+        AutoStartHint.Foreground = ThemeService.Brush(good ? "TextFaint" : "Warn");
+    }
 
     private static string DescribeClassSchedule(AppConfig cfg)
     {
@@ -185,7 +198,13 @@ public partial class SettingsView : UserControl
         {
             case "AutoStart":
                 cfg.AutoStart = on;
-                try { AutoStartService.SetEnabled(on); }
+                try
+                {
+                    var (ok, message) = AutoStartService.Ensure(on);
+                    AppLog.Info("开机自启：" + message);
+                    RefreshAutoStartHint();
+                    if (on && !ok) ToastWindow.Show("自启动没设置成功", message, "可以试试用管理员身份运行一次", ToastKind.Error);
+                }
                 catch (Exception ex) { ToastWindow.Show("自启动设置失败", ex.Message, "", ToastKind.Error); }
                 break;
             case "SilentStart": cfg.SilentStart = on; break;
@@ -202,6 +221,8 @@ public partial class SettingsView : UserControl
             case "StopBuiltinOnClass": cfg.StopBuiltinOnClass = on; break;
             case "CloseClientOnClass": cfg.CloseClientOnClass = on; break;
             case "CloseBiliTabOnClass": cfg.CloseBiliTabOnClass = on; break;
+            case "BiliMaximize": cfg.BiliMaximize = on; break;
+            case "BiliPageFullscreen": cfg.BiliPageFullscreen = on; break;
             case "CheckUpdateOnStart": cfg.CheckUpdateOnStart = on; break;
             case "EnableProtocol":
                 cfg.EnableProtocol = on;

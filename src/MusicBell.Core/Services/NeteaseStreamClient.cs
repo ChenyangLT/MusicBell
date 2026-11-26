@@ -68,6 +68,14 @@ public static class NeteaseStreamClient
     {
         public string Raw { get; init; } = "";
         public List<LrcLine> Lines { get; init; } = new();
+
+        /// <summary>没有时间轴的纯文本歌词（少数歌只给了这种），按行显示，不滚动。</summary>
+        public List<string> PlainLines { get; init; } = new();
+
+        /// <summary>歌词不是这首歌自己的时候记一下来源（同名单曲的另一个版本）。</summary>
+        public string? Source { get; set; }
+
+        public bool HasLyrics => Lines.Count > 0 || PlainLines.Count > 0;
         public bool HasTranslation => Lines.Any(l => l.Text.Contains("  ·  "));
 
         public int IndexAt(TimeSpan position)
@@ -84,6 +92,9 @@ public static class NeteaseStreamClient
     }
 
     private static readonly Regex LrcTag = new(@"\[(\d{1,2}):(\d{1,2})(?:[.:](\d{1,3}))?\]", RegexOptions.Compiled);
+
+    /// <summary>酷狗那种逐字歌词的 (起始,时长,0) 注解，直接去掉。</summary>
+    private static readonly Regex LrcAnnotation = new(@"(d+,d+,d+)", RegexOptions.Compiled);
 
     public static LrcDoc ParseLrc(string? lrc, string? translation = null)
     {
@@ -103,6 +114,17 @@ public static class NeteaseStreamClient
                 line = text + "  ·  " + tr;
             doc.Lines.Add(new LrcLine(time, line));
         }
+        if (doc.Lines.Count == 0)
+        {
+            // 少数歌只有不带时间轴的纯文本，别当成「没有歌词」。
+            foreach (var raw in LrcAnnotation.Replace(lrc!, "").Split('\n'))
+            {
+                var plain = LrcTag.Replace(raw, "").Trim();
+                if (plain.Length == 0) continue;
+                if (plain.StartsWith("作词", StringComparison.Ordinal) || plain.StartsWith("作曲", StringComparison.Ordinal)) continue;
+                doc.PlainLines.Add(plain);
+            }
+        }
         return doc;
     }
 
@@ -112,7 +134,7 @@ public static class NeteaseStreamClient
         {
             var matches = LrcTag.Matches(raw);
             if (matches.Count == 0) continue;
-            var text = LrcTag.Replace(raw, "").Trim();
+            var text = LrcAnnotation.Replace(LrcTag.Replace(raw, ""), "").Trim();
             foreach (Match m in matches)
             {
                 var min = int.Parse(m.Groups[1].Value);
@@ -129,20 +151,22 @@ public static class NeteaseStreamClient
         }
     }
 
-    /// <summary>取歌词（含翻译）。</summary>
-    public static async Task<LrcDoc?> GetLyricAsync(long id, CancellationToken ct = default)
+    /// <summary>
+    /// 取歌词（含翻译）。
+    /// 必须用 lv=-1：用 lv=1 时相当一部分歌（例如《烂奇迹》杨羊烊版）会返回空歌词。
+    /// 真没有就退一步找同名单曲的歌词（同歌不同版本常一个有、一个没有）。
+    /// </summary>
+    public static async Task<LrcDoc?> GetLyricAsync(long id, string? title = null, CancellationToken ct = default)
     {
         if (id <= 0) return null;
         try
         {
-            var url = $"https://music.163.com/api/song/lyric?id={id}&lv=1&kv=1&tv=-1";
-            var body = await Http.GetStringAsync(url, ct).ConfigureAwait(false);
-            using var doc = JsonDocument.Parse(body);
-            var root = doc.RootElement;
-            var lrc = root.TryGetProperty("lrc", out var l) && l.TryGetProperty("lyric", out var ly) ? ly.GetString() : null;
-            var tlrc = root.TryGetProperty("tlyric", out var t) && t.TryGetProperty("lyric", out var ty) ? ty.GetString() : null;
-            var parsed = ParseLrc(lrc, tlrc);
-            return parsed.Lines.Count == 0 && string.IsNullOrWhiteSpace(parsed.Raw) ? null : parsed;
+            var doc = await FetchLyricAsync(id, ct).ConfigureAwait(false);
+            if (doc is not null && doc.HasLyrics && !IsPlaceholder(doc)) return doc;
+
+            if (string.IsNullOrWhiteSpace(title)) return doc;
+            var alt = await FindSameTitleLyricAsync(id, title!.Trim(), ct).ConfigureAwait(false);
+            return alt ?? doc;
         }
         catch (Exception ex)
         {
@@ -150,4 +174,61 @@ public static class NeteaseStreamClient
             return null;
         }
     }
+
+    /// <summary>网易云有时只给一句「纯音乐，请欣赏」，这种等于没有。</summary>
+    private static bool IsPlaceholder(LrcDoc doc)
+    {
+        if (doc.Lines.Count > 1) return false;
+        var text = doc.Lines.Count == 1 ? doc.Lines[0].Text : string.Join(" ", doc.PlainLines);
+        return text.Contains("纯音乐", StringComparison.Ordinal) && text.Length <= 24;
+    }
+
+    private static async Task<LrcDoc?> FetchLyricAsync(long id, CancellationToken ct)
+    {
+        var url = $"https://music.163.com/api/song/lyric?id={id}&lv=-1&kv=-1&tv=-1&rv=-1&cp=false";
+        var body = await Http.GetStringAsync(url, ct).ConfigureAwait(false);
+        using var doc = JsonDocument.Parse(body);
+        var root = doc.RootElement;
+        var lrc = ReadLyric(root, "lrc");
+        var tlrc = ReadLyric(root, "tlyric");
+        if (string.IsNullOrWhiteSpace(lrc)) lrc = ReadLyric(root, "yrc");
+        if (string.IsNullOrWhiteSpace(lrc)) lrc = ReadLyric(root, "klyric");
+        if (string.IsNullOrWhiteSpace(lrc) && string.IsNullOrWhiteSpace(tlrc)) return null;
+        return ParseLrc(lrc, tlrc);
+    }
+
+    private static string? ReadLyric(JsonElement root, string name)
+        => root.TryGetProperty(name, out var node) && node.TryGetProperty("lyric", out var text)
+            ? text.GetString()
+            : null;
+
+    /// <summary>按同名找一条有歌词的版本（最多看 6 条，别把接口刷爆）。</summary>
+    private static async Task<LrcDoc?> FindSameTitleLyricAsync(long selfId, string title, CancellationToken ct)
+    {
+        try
+        {
+            var songs = await new NeteaseSearchClient().SuggestAsync(title, 6, ct).ConfigureAwait(false);
+            foreach (var song in songs)
+            {
+                if (song.Id == selfId) continue;
+                if (!string.Equals(Normalize(song.Name), Normalize(title), StringComparison.Ordinal)) continue;
+                await Task.Delay(120, ct).ConfigureAwait(false);
+                var doc = await FetchLyricAsync(song.Id, ct).ConfigureAwait(false);
+                if (doc is not null && doc.HasLyrics && !IsPlaceholder(doc))
+                {
+                    doc.Source = $"{song.Name} · {song.Artist}";
+                    AppLog.Info($"歌词从同名单曲借用：{song.Name} · {song.Artist}（{song.Id}）");
+                    return doc;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn("同名歌词回退失败：" + ex.Message);
+        }
+        return null;
+    }
+
+    private static string Normalize(string? text)
+        => Regex.Replace((text ?? "").ToLowerInvariant(), "[\\s\\(\\)（）\\[\\]【】\\-_/·,，.。!！?？'\"“”]+", "");
 }

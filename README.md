@@ -18,9 +18,9 @@
 
 ![](docs/images/player.png)
 ![](docs/images/stats.png)
-- **ClassIsland 联动**：附带官方插件（行动），在课表里用「行动」调起点歌；软件内的时间点和 ClassIsland 的行动两条路可以同时用。
+- **ClassIsland 联动**：附带官方插件，六个行动 —— 放一首歌、放下一首排歌、播放/暂停、停止播放、打开网易云、关闭网易云。软件内的时间点和 ClassIsland 的行动两条路可以同时用。
 - **深色/浅色主题**、窗口圆角、会跟着主题走的自绘界面。
-- **开机自启**、**关窗即隐到托盘**、**单实例**、**检测 GitHub 更新**（只提示，不自动装）。
+- **开机自启**（写注册表 Run 项，被系统「启动应用」禁用、被安全软件拦住或 exe 换了位置时会自动改走启动文件夹快捷方式，并在设置页显示到底是哪种方式生效）、**关窗即隐到托盘**、**单实例**、**检测 GitHub 更新**（只提示，不自动装）。
 - 配置与排歌全部是 JSON，**数据目录可以搬到任意位置**（U 盘也行）；提供 `protocol` 协议与命令行入口，方便别的程序调它。
 
 ![](docs/images/schedules.png)
@@ -53,7 +53,7 @@
 软件里集成了 ClassIsland 插件，两种用法可同时开：
 
 - **软件自己排时间**：在 MusicBell 里排歌，软件负责到点播放（和 ClassIsland 是否运行无关）。
-- **ClassIsland 触发**：「设置 → 联动」点「释放插件」→ 把 `.cipx` 装进 ClassIsland（或把文件夹丢进 `ClassIsland\data\Plugins\`）→ 在「自动化 → 行动」里添加「MusicBell 放一首歌」。插件源码在 [MusicBell.ClassIsland](https://github.com/ChenyangLT/MusicBell.ClassIsland)。
+- **ClassIsland 触发**：「设置 → 联动」点「释放插件」→ 把 `.cipx` 装进 ClassIsland（或把文件夹丢进 `ClassIsland\data\Plugins\`）→ 在「自动化 → 行动」的「音乐铃」分组里挑：放一首歌 / 放下一首排歌 / 播放·暂停 / 停止播放 / 打开网易云 / 关闭网易云。插件源码在 [MusicBell.ClassIsland](https://github.com/ChenyangLT/MusicBell.ClassIsland)。
 
 看到 ClassIsland 提示「该插件需要 2.1.x」是正常的：插件用的正是 2.1 的 API。
 
@@ -82,8 +82,21 @@
 MusicBell.exe --silent                 # 静默启动（只驻留托盘）
 MusicBell.exe --play "周杰伦 晴天"      # 立刻放一首
 MusicBell.exe --play-next              # 放「下一个排歌」
-musicbell://play?q=%E5%91%A8%E6%9D%B0%E4%BC%A6%20%E6%99%B4%E5%A4%A9&label=%E6%97%A9%E8%AF%BB%E9%93%83&src=classisland
+MusicBell.exe --pause                  # 播放 / 暂停
+MusicBell.exe --stop                   # 停止播放
+MusicBell.exe --close                  # 关掉网易云
+MusicBell.exe --open-native            # 打开网易云
 ~~~
+
+对应的协议（ClassIsland 插件用的就是这些，别的程序也能调）：
+
+| 协议 | 作用 |
+| --- | --- |
+| `musicbell://play?q=歌名&id=网易云ID&label=显示名&src=来源` | 放一首歌（带 `id` 时内置播放器可以直接放） |
+| `musicbell://next?src=classisland` | 放「下一个排歌」 |
+| `musicbell://pause` / `musicbell://stop` | 暂停 / 停止内置播放器 |
+| `musicbell://close` | 关掉网易云客户端 |
+| `musicbell://open` | 打开网易云客户端 |
 
 ## 从源码构建
 
@@ -116,6 +129,7 @@ docs/                       使用说明、联动文档、截图
 
 - 客户端自动化是按窗口比例「点搜索框 + 粘贴 + 双击第一首」实现的。默认流程够用；网易云大改版后可以在「设置 → 播放与点歌方式 → 编辑流程」里重新拾取每一步的位置。
 - 内置播放器靠网易云的直链接口，会员专属曲、部分版权曲拿不到直链，这时会自动回落到打开网易云客户端。
+- 歌词取自网易云（原文/翻译/逐字注解都能解析）；少数歌只有纯文本歌词，这时会整段铺开、不跟时间走；网易云上完全没有歌词的会直接提示。
 - B 站只做到「用默认浏览器打开视频页」，不接管网页里的播放；上课前关标签页是按登记的标题找浏览器窗口再发 Ctrl+W，标题被手动改过就找不到了（会退回按「哔哩哔哩」关键词兜底）。
 - 只做了 Windows x64。
 

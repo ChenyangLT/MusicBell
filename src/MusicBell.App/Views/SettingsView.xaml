@@ -15,6 +15,8 @@
                         <StackPanel>
                             <TextBlock Text="开机自启动" Style="{StaticResource Body}"/>
                             <TextBlock Text="登录 Windows 后自动静默启动，每 10 秒检查一次排歌" Style="{StaticResource Caption}" Margin="0,3,0,0"/>
+                            <TextBlock x:Name="AutoStartHint" Style="{StaticResource Caption}" Margin="0,4,0,0"
+                                       TextWrapping="Wrap" MaxWidth="620" HorizontalAlignment="Left"/>
                         </StackPanel>
                         <CheckBox x:Name="SwAutoStart" Style="{StaticResource Switch}" HorizontalAlignment="Right"
                                   VerticalAlignment="Center" Tag="AutoStart" Checked="Switch_Toggled" Unchecked="Switch_Toggled"/>
@@ -251,6 +253,24 @@
                             <Button Content="释放扩展" Style="{StaticResource PrimaryButton}" Padding="16,8" Margin="8,0,0,0"
                                     Click="ExportBrowserExt_Click"/>
                         </StackPanel>
+                    </Grid>
+                    <Border Height="1" Background="{DynamicResource Border}" Margin="18,0"/>
+                    <Grid Margin="18,10">
+                        <StackPanel>
+                            <TextBlock Text="B 站播放时最大化浏览器" Style="{StaticResource Body}"/>
+                            <TextBlock Text="打开视频后直接把浏览器窗口放到最大（系统调用，不模拟点击）" Style="{StaticResource Caption}" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <CheckBox x:Name="SwBiliMaximize" Style="{StaticResource Switch}" HorizontalAlignment="Right"
+                                  VerticalAlignment="Center" Tag="BiliMaximize" Checked="Switch_Toggled" Unchecked="Switch_Toggled"/>
+                    </Grid>
+                    <Border Height="1" Background="{DynamicResource Border}" Margin="18,0"/>
+                    <Grid Margin="18,10">
+                        <StackPanel>
+                            <TextBlock Text="B 站播放时页面全屏" Style="{StaticResource Body}"/>
+                            <TextBlock Text="在上面基础上再按一下 F11，只留页面本身；全屏时按 F11 或 Esc 可以退出" Style="{StaticResource Caption}" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <CheckBox x:Name="SwBiliFullscreen" Style="{StaticResource Switch}" HorizontalAlignment="Right"
+                                  VerticalAlignment="Center" Tag="BiliPageFullscreen" Checked="Switch_Toggled" Unchecked="Switch_Toggled"/>
                     </Grid>
                 </StackPanel>
             </Border>

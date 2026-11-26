@@ -68,8 +68,9 @@ public partial class App : Application
         }
 
         if (Storage.Config.EnableProtocol && !ProtocolService.IsRegisteredForCurrentExe()) ProtocolService.Register();
-        if (Storage.Config.AutoStart != AutoStartService.IsEnabled())
-            AutoStartService.SetEnabled(Storage.Config.AutoStart);
+        // 每次启动都顺手对一遍：换过目录、被任务管理器禁用过，都在这里修回来
+        var autoStart = AutoStartService.Ensure(Storage.Config.AutoStart);
+        if (!autoStart.Ok) AppLog.Warn("开机自启没弄好：" + autoStart.Message);
 
         CreateTray();
 
@@ -292,7 +293,8 @@ public partial class App : Application
             if (a.Equals("--play-next", StringComparison.OrdinalIgnoreCase)) return a;
             if (a.StartsWith("--play", StringComparison.OrdinalIgnoreCase)) return a;
             if (a.StartsWith("--show", StringComparison.OrdinalIgnoreCase)) return a;
-            if (a.StartsWith("--stop", StringComparison.OrdinalIgnoreCase)) return a;
+            foreach (var flag in new[] { "--stop", "--pause", "--close", "--open-native" })
+                if (a.Equals(flag, StringComparison.OrdinalIgnoreCase)) return a;
         }
         return "";
     }
@@ -312,7 +314,9 @@ public partial class App : Application
                     var dict = ParseQuery(uri.Query);
                     dict.TryGetValue("q", out var q);
                     dict.TryGetValue("label", out var label);
-                    if (!string.IsNullOrWhiteSpace(q)) PlayExternal(q!, label);
+                    dict.TryGetValue("id", out var id);
+                    if (!string.IsNullOrWhiteSpace(q) || !string.IsNullOrWhiteSpace(id))
+                        PlayExternal(q ?? "", label, string.IsNullOrWhiteSpace(id) ? null : id);
                 }
                 else if (uri.Host.Equals("next", StringComparison.OrdinalIgnoreCase))
                 {
@@ -322,6 +326,22 @@ public partial class App : Application
                 {
                     ShowMain();
                 }
+                else if (uri.Host.Equals("stop", StringComparison.OrdinalIgnoreCase))
+                {
+                    StopBuiltin();
+                }
+                else if (uri.Host.Equals("pause", StringComparison.OrdinalIgnoreCase))
+                {
+                    TogglePause();
+                }
+                else if (uri.Host.Equals("close", StringComparison.OrdinalIgnoreCase))
+                {
+                    CloseMusic();
+                }
+                else if (uri.Host.Equals("open", StringComparison.OrdinalIgnoreCase))
+                {
+                    OpenNativeClient();
+                }
             }
             catch (Exception ex) { AppLog.Warn("解析协议失败：" + ex.Message); }
             return;
@@ -329,6 +349,10 @@ public partial class App : Application
 
         if (raw.StartsWith("--show", StringComparison.OrdinalIgnoreCase)) { ShowMain(); return; }
         if (raw.Equals("--play-next", StringComparison.OrdinalIgnoreCase)) { PlayNextNow(); return; }
+        if (raw.Equals("--stop", StringComparison.OrdinalIgnoreCase)) { StopBuiltin(); return; }
+        if (raw.Equals("--pause", StringComparison.OrdinalIgnoreCase)) { TogglePause(); return; }
+        if (raw.Equals("--close", StringComparison.OrdinalIgnoreCase)) { CloseMusic(); return; }
+        if (raw.Equals("--open-native", StringComparison.OrdinalIgnoreCase)) { OpenNativeClient(); return; }
         if (raw.StartsWith("--play ", StringComparison.OrdinalIgnoreCase))
         {
             PlayExternal(raw.Substring(7).Trim().Trim('"'), null);
@@ -390,11 +414,12 @@ public partial class App : Application
         });
     }
 
-    public async void PlayExternal(string query, string? label)
+    public async void PlayExternal(string query, string? label, string? songId = null)
     {
-        if (string.IsNullOrWhiteSpace(query)) return;
-        ToastWindow.Show(string.IsNullOrWhiteSpace(label) ? "正在点歌" : label!, query, "来自 ClassIsland / 外部调用", ToastKind.Playing);
-        var result = await Task.Run(() => Player.PlayAsync(query, null)).ConfigureAwait(true);
+        if (string.IsNullOrWhiteSpace(query) && string.IsNullOrWhiteSpace(songId)) return;
+        var shown = string.IsNullOrWhiteSpace(query) ? "网易云歌曲 " + songId : query;
+        ToastWindow.Show(string.IsNullOrWhiteSpace(label) ? "正在点歌" : label!, shown, "来自 ClassIsland / 外部调用", ToastKind.Playing);
+        var result = await Task.Run(() => Player.PlayAsync(query, songId)).ConfigureAwait(true);
         AppLog.Info($"外部点歌：{query} → {result.Success} / {result.Message} / {result.Elapsed.TotalMilliseconds:F0}ms");
         if (!result.Success)
             ToastWindow.Show("没能自动播放", result.Message, "可在设置里调整网易云路径", ToastKind.Error);
@@ -440,6 +465,59 @@ public partial class App : Application
                 ToastWindow.Show(r.Success ? "已播放" : "播放失败", next.Value.Entry.Title, r.Message, r.Success ? ToastKind.Success : ToastKind.Error);
                 Shell?.RefreshAll();
             }));
+        });
+    }
+
+    /// <summary>停掉内置播放器（客户端那边不动）。</summary>
+    public void StopBuiltin()
+    {
+        if (!BuiltinPlayer.HasTrack)
+        {
+            ToastWindow.Show("内置播放器没在放歌", "现在没有可以停的", "", ToastKind.Info);
+            return;
+        }
+        BuiltinPlayer.Stop();
+        AppLog.Info("外部调用：停止内置播放器");
+        ToastWindow.Show("已停止播放", BuiltinPlayer.Track?.Title ?? "", "", ToastKind.Success);
+    }
+
+    /// <summary>播放 / 暂停切换。</summary>
+    public void TogglePause()
+    {
+        if (!BuiltinPlayer.HasTrack)
+        {
+            ToastWindow.Show("内置播放器没在放歌", "先点一首歌吧", "", ToastKind.Info);
+            return;
+        }
+        BuiltinPlayer.TogglePause();
+        AppLog.Info($"外部调用：{(BuiltinPlayer.IsPlaying ? "继续" : "暂停")}播放");
+        ToastWindow.Show(BuiltinPlayer.IsPlaying ? "继续播放" : "已暂停", BuiltinPlayer.Track?.Title ?? "", "", ToastKind.Info);
+    }
+
+    /// <summary>关掉正在放音乐的客户端：内置播放器停掉 + 结束 cloudmusic.exe。</summary>
+    public void CloseMusic()
+    {
+        if (BuiltinPlayer.HasTrack) BuiltinPlayer.Stop();
+        _ = Task.Run(() =>
+        {
+            var closed = NetEaseAutomation.CloseNetEase(m => AppLog.Info("外部调用：" + m));
+            Dispatcher.BeginInvoke(new Action(() =>
+                ToastWindow.Show(closed ? "已关闭网易云音乐" : "没有找到网易云进程",
+                    closed ? "上课 / 下课时用得上" : "可能本来就没开", "", closed ? ToastKind.Success : ToastKind.Info)));
+        });
+    }
+
+    /// <summary>把网易云客户端叫到前台（不搜索，只是打开）。</summary>
+    public void OpenNativeClient()
+    {
+        var exe = Storage.Config.NetEasePath ?? Storage.Config.NetEasePathResolved ?? NetEaseLocator.GuessPath() ?? "";
+        _ = Task.Run(async () =>
+        {
+            var hwnd = await NetEaseAutomation.EnsureWindowAsync(exe, 25000, m => AppLog.Info("外部调用：" + m));
+            await Dispatcher.BeginInvoke(new Action(() =>
+                ToastWindow.Show(hwnd != IntPtr.Zero ? "已打开网易云音乐" : "没能打开网易云",
+                    hwnd != IntPtr.Zero ? "窗口已在前台" : "可在设置里指定 cloudmusic.exe 的位置",
+                    "", hwnd != IntPtr.Zero ? ToastKind.Success : ToastKind.Error)));
         });
     }
 
